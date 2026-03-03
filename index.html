@@ -37,13 +37,15 @@
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            /* Android 14 のシステムバー対策 */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         #loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 8, 8, 0.85);
-            backdrop-filter: blur(5px);
+            background: rgba(8, 8, 8, 0.95); /* 少し暗くして視認性向上 */
+            backdrop-filter: blur(8px);
             z-index: 1000;
             display: none;
             flex-direction: column;
@@ -65,12 +67,14 @@
             border: 2px solid var(--neon-blue); padding: 15px 30px; border-radius: 30px;
             box-shadow: 0 0 20px var(--neon-blue-glow); animation: pulse 1.5s infinite;
             text-align: center;
+            cursor: pointer;
         }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         .player-wrapper {
             width: 100%; padding: 25px 10px 10px 10px; 
             box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
+            height: 100%;
         }
 
         header.glass-header { text-align: center; padding: 0 0 2px 0; }
@@ -113,6 +117,8 @@
 
         section.container-2 { 
             position: relative; height: 60px; display: flex; align-items: center; justify-content: center;
+            /* 横方向のジェスチャー誤作動防止 */
+            touch-action: pan-y;
         }
         .seek-wrapper { 
             position: relative; 
@@ -159,7 +165,7 @@
             width: var(--marker-size); 
             height: var(--marker-size); 
             border-radius: 50%; 
-            background: rgba(50, 50, 50, 0.9); 
+            background: rgba(20, 20, 20, 0.95); 
             color: var(--neon-blue); 
             font-size: 14px; 
             font-family: var(--font-header);
@@ -182,6 +188,7 @@
             cursor: pointer; display: flex; justify-content: center; align-items: center; 
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(0, 242, 255, 0.3);
+            -webkit-user-select: none;
         }
         .main-btn:active {
             background: rgba(0, 242, 255, 0.25) !important;
@@ -244,6 +251,7 @@
         #playlist-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg-black); z-index: 9999; display: none; flex-direction: column; padding: 12px; box-sizing: border-box;
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .playlist-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--neon-blue); padding-bottom: 6px; }
         #btn-close-list { background:none; border:1px solid var(--neon-blue); color:var(--neon-blue); border-radius:10px; padding:3px 10px; font-size: 0.55rem; font-family: var(--font-header); }
@@ -332,7 +340,7 @@
     <ul id="track-list"></ul>
 </div>
 
-<audio id="audio"></audio>
+<audio id="audio" preload="auto"></audio>
 
 <script>
     const audio = document.getElementById('audio');
@@ -345,6 +353,9 @@
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingSpinner = document.getElementById('loading-spinner');
     const tapToStart = document.getElementById('tap-to-start');
+    const timeDisplay = document.getElementById('time-display');
+    const abRangeText = document.getElementById('ab-range-text');
+    
     const ICON_PLAY = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
     const ICON_PAUSE = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M6.5 19h4V5h-4v14zm9 0h4V5h-4v14z"/></svg>';
     let posA = 0; let posB = 100;
@@ -402,18 +413,30 @@
             allFiles = savedList.map(m => ({ ...m, file: null }));
             renderList();
             tapToStart.innerText = "RESTORE FOLDER ACCESS";
+            tapToStart.style.fontSize = "0.7rem";
             loadingOverlay.style.display = 'flex';
             loadingSpinner.style.display = 'none';
+            tapToStart.style.display = 'block';
+        } else {
+            loadingOverlay.style.display = 'flex';
+            loadingSpinner.style.display = 'none';
+            tapToStart.innerText = "START PLAYER";
             tapToStart.style.display = 'block';
         }
     }
 
     async function verifyAndLinkFiles() {
         try {
+            if (!directoryHandle) return false;
             const options = { mode: 'read' };
+            // Android 14/Chrome では明示的なリクエストが必要
             if (await directoryHandle.queryPermission(options) !== 'granted') {
                 if (await directoryHandle.requestPermission(options) !== 'granted') return false;
             }
+            
+            loadingSpinner.style.display = 'block';
+            tapToStart.style.display = 'none';
+
             async function scan(handle, path = []) {
                 for await (const entry of handle.values()) {
                     if (entry.kind === 'file') {
@@ -431,7 +454,10 @@
             await scan(directoryHandle, [directoryHandle.name]);
             renderList();
             return true;
-        } catch (e) { return false; }
+        } catch (e) { 
+            console.error("Link error:", e);
+            return false; 
+        }
     }
 
     document.getElementById('btn-select-file').onclick = () => { if (allFiles.length === 0) { alert("SCAN FOLDER FIRST"); return; } overlay.style.display = 'flex'; };
@@ -494,7 +520,7 @@
         });
         files.forEach(f => {
             const li = document.createElement('li'); li.className = 'item track';
-            const uniqueId = `f-${f.name.replace(/\s+/g, '')}`;
+            const uniqueId = `f-${f.name.replace(/[^\w]/g, '')}`;
             li.innerHTML = `<div class="item-upper"><span class="track-name-part">${f.name}</span><span class="track-duration-part" id="dur-${uniqueId}">--:--</span></div><div class="item-lower" id="meta-${uniqueId}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
             li.onclick = () => { if (!f.file) { alert("PLEASE TAP 'RESTORE FOLDER ACCESS' ON START SCREEN"); return; } loadTrack(f.file); overlay.style.display = 'none'; };
             trackList.appendChild(li);
@@ -546,40 +572,60 @@
         inner.classList.remove('scrolling-content'); const oldClone = inner.querySelector('.marquee-clone'); if (oldClone) inner.removeChild(oldClone);
         if (inner.scrollWidth > box.clientWidth + 2) { const span = inner.querySelector('span'); const clone = span.cloneNode(true); clone.classList.add('marquee-clone'); inner.appendChild(clone); inner.classList.add('scrolling-content'); }
     }
+    
     function updateSeekStyle() {
-        const wrapper = document.getElementById('seek-wrapper'); const rectWidth = wrapper.clientWidth;
+        const wrapper = document.getElementById('seek-wrapper'); 
+        if (!wrapper) return;
+        const rectWidth = wrapper.clientWidth;
         const xA = (posA / 100) * rectWidth; const xB = (posB / 100) * rectWidth;
         markerA.style.left = `${xA}px`; markerB.style.left = `${xB}px`; seekBg.style.left = `${xA}px`; seekBg.style.width = `${xB - xA}px`;
-        if (audio.duration) { document.getElementById('ab-range-text').innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`; }
+        if (audio.duration) { abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`; }
     }
+    
     function formatTime(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s / 60); const scale = Math.floor(s % 60); return `${m.toString().padStart(2, '0')}:${scale.toString().padStart(2, '0')}`; }
     function updateTempo(val) { const newTempo = Math.max(50, Math.min(150, parseInt(val))); tempoSlider.value = newTempo; audio.playbackRate = newTempo / 100; }
+    
     let tempoInterval; let tempoDelay;
     function startTempoChange(delta) { updateTempo(parseInt(tempoSlider.value) + delta); tempoDelay = setTimeout(() => { tempoInterval = setInterval(() => { updateTempo(parseInt(tempoSlider.value) + delta); }, 80); }, 500); }
     function stopTempoChange() { clearTimeout(tempoDelay); clearInterval(tempoInterval); }
+    
     const tMinus = document.getElementById('tempo-minus'); const tPlus = document.getElementById('tempo-plus');
-    tMinus.addEventListener('touchstart', (e) => { e.preventDefault(); startTempoChange(-1); }); tPlus.addEventListener('touchstart', (e) => { e.preventDefault(); startTempoChange(1); });
+    tMinus.addEventListener('touchstart', (e) => { e.preventDefault(); startTempoChange(-1); }, {passive: false}); 
+    tPlus.addEventListener('touchstart', (e) => { e.preventDefault(); startTempoChange(1); }, {passive: false});
     tMinus.addEventListener('mousedown', () => startTempoChange(-1)); tPlus.addEventListener('mousedown', () => startTempoChange(1));
     window.addEventListener('touchend', stopTempoChange); window.addEventListener('touchcancel', stopTempoChange); window.addEventListener('mouseup', stopTempoChange);
+    
     document.getElementById('tempo-reset').onclick = () => updateTempo(100);
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
+    
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
+    
+    // updateFrame の軽量化（DOMアクセスの最小化）
     function updateFrame() {
         if (audio.duration && !isDragging) {
-            const curP = (audio.currentTime / audio.duration) * 100;
-            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * audio.duration;
+            const curTime = audio.currentTime;
+            const duration = audio.duration;
+            const curP = (curTime / duration) * 100;
+
+            // ループ制御
+            if (curP >= posB || curP < posA - 0.2) {
+                audio.currentTime = (posA / 100) * duration;
+            }
+            
             seek.value = curP;
-            document.getElementById('time-display').innerText = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+            timeDisplay.innerText = `${formatTime(curTime)} / ${formatTime(duration)}`;
             updateSeekStyle();
         }
         requestAnimationFrame(updateFrame);
     }
     requestAnimationFrame(updateFrame);
+
     seek.oninput = (e) => { isDragging = true; let val = parseFloat(e.target.value); if (val < posA) { val = posA; e.target.value = posA; } else if (val > posB) { val = posB; e.target.value = posB; } audio.currentTime = (val / 100) * audio.duration; updateSeekStyle(); };
     seek.onchange = () => { isDragging = false; };
     document.getElementById('btn-set-a').onclick = () => { posA = (audio.currentTime / audio.duration) * 100; if (posA >= posB) posA = posB - 0.5; updateSeekStyle(); };
     document.getElementById('btn-set-b').onclick = () => { posB = (audio.currentTime / audio.duration) * 100; if (posB <= posA) posB = posA + 0.5; updateSeekStyle(); };
     document.getElementById('btn-back-to-a').onclick = () => { if (!audio.duration) return; audio.play(); audio.currentTime = (posA / 100) * audio.duration; playIcon.innerHTML = ICON_PAUSE; seek.value = posA; updateSeekStyle(); };
+    
     function setupDraggable(el, isA) { 
         let dragging = false; 
         const move = (e) => { if (!dragging) return; isDragging = true; const rect = document.getElementById('seek-wrapper').getBoundingClientRect(); const x = (e.touches ? e.touches[0].clientX : e.clientX); let val = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100)); if (isA) { posA = Math.min(val, posB - 1); } else { posB = Math.max(val, posA + 1); } updateSeekStyle(); }; 
@@ -597,15 +643,6 @@
         loadSavedList(); 
     };
     window.onresize = () => updateSeekStyle();
-
-    // --- サービスワーカーの登録 ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker registered', reg))
-            .catch(err => console.error('Service Worker registration failed', err));
-        });
-    }
 </script>
 </body>
 </html>
