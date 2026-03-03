@@ -521,7 +521,9 @@
         files.forEach(f => {
             const li = document.createElement('li'); li.className = 'item track';
             const uniqueId = `f-${f.name.replace(/[^\w]/g, '')}`;
-            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${f.name}</span><span class="track-duration-part" id="dur-${uniqueId}">--:--</span></div><div class="item-lower" id="meta-${uniqueId}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
+            // 拡張子を除去した名前を作成
+            const displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
+            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${uniqueId}">--:--</span></div><div class="item-lower" id="meta-${uniqueId}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
             li.onclick = () => { if (!f.file) { alert("PLEASE TAP 'RESTORE FOLDER ACCESS' ON START SCREEN"); return; } loadTrack(f.file); overlay.style.display = 'none'; };
             trackList.appendChild(li);
             if (f.file) {
@@ -540,12 +542,14 @@
             loadingSpinner.style.display = 'none'; tapToStart.style.display = 'block'; tapToStart.innerText = "READY";
             window.jsmediatags.read(file, {
                 onSuccess: (tag) => {
-                    document.getElementById('title-text').innerText = tag.tags.title || file.name;
+                    // タグがある場合はタグのタイトルを、ない場合はファイル名から拡張子を削ったものを表示
+                    document.getElementById('title-text').innerText = tag.tags.title || file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
                     document.getElementById('artist-text').innerText = tag.tags.artist || "UNKNOWN ARTIST";
                     setTimeout(() => { checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); }, 100);
                 },
                 onError: () => {
-                    document.getElementById('title-text').innerText = file.name;
+                    // エラー時はファイル名から拡張子を削って表示
+                    document.getElementById('title-text').innerText = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
                     document.getElementById('artist-text').innerText = "UNKNOWN ARTIST";
                     setTimeout(() => { checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); }, 100);
                 }
