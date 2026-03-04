@@ -107,18 +107,21 @@
         .artist-row { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
         #artist-text { font-size: 0.8rem; color: var(--neon-blue); line-height: 1.2; }
         
+        /* 選曲ボタンをFOLDER SCANボタンと同じスタイルに統一 */
         .btn-select { 
-            width: 70%;
+            width: 90%;
             height: 34px; border-radius: 17px; 
-            border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.1);
-            color: #fff; font-size: 0.8rem;
-            font-weight: bold; line-height: 1; margin-top: 5px;
+            border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1);
+            color: var(--neon-blue); font-size: 0.8rem;
+            font-family: var(--font-header); font-weight: bold; letter-spacing: 2px;
+            box-shadow: 0 0 10px var(--neon-blue-glow), inset 0 0 5px var(--neon-blue-glow);
+            text-shadow: 0 0 5px var(--neon-blue-glow);
             transition: all 0.2s ease;
+            margin-top: 5px;
         }
         .btn-select:active {
-            background: rgba(0, 242, 255, 0.2);
-            box-shadow: 0 0 20px var(--neon-blue-glow);
-            border-color: var(--neon-blue);
+            background: rgba(0, 242, 255, 0.25);
+            transform: scale(0.98);
         }
 
         .status-action-row { 
@@ -268,7 +271,7 @@
             <div class="marquee-box" id="title-box"><div id="title-inner" class="marquee-inner"><span id="title-text">SELECT TRACK</span></div></div>
             <div class="artist-row">
                 <div class="marquee-box" id="artist-box"><div id="artist-inner" class="marquee-inner"><span id="artist-text">UNKNOWN ARTIST</span></div></div>
-                <button class="btn-select" id="btn-select-file">選 曲</button>
+                <button class="btn-select" id="btn-select-file">SELECT TRACK</button>
             </div>
         </div>
         <div class="status-action-row">
@@ -402,7 +405,7 @@
                 }
             }
             await scan(directoryHandle, [directoryHandle.name]); renderList(); return true;
-        } catch (e) { return false; } verification
+        } catch (e) { return false; }
     }
 
     document.getElementById('btn-select-file').onclick = () => { if (allFiles.length === 0) { alert("SCAN FOLDER FIRST"); return; } overlay.style.display = 'flex'; };
@@ -511,11 +514,9 @@
         if (inner.scrollWidth > box.clientWidth + 2) { const clone = inner.querySelector('span').cloneNode(true); clone.classList.add('marquee-clone'); inner.appendChild(clone); inner.classList.add('scrolling-content'); }
     }
     
-    // 重なりの原因を修正した座標計算ロジック
     function updateSeekStyle() {
         const rectWidth = seekWrapper.clientWidth;
         const thumbSize = 32; 
-        // ブラウザのスライダーつまみの中心座標と一致させる計算式
         const getX = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
 
         const xA = getX(posA);
@@ -556,7 +557,6 @@
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
-            // posB到達判定を厳密化
             if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * duration;
             seek.value = curP;
             const timeStr = `${formatTime(curTime)} / ${formatTime(duration)}`;
@@ -571,7 +571,6 @@
         isDragging = true; 
         audio.muted = true; 
         let val = parseFloat(e.target.value); 
-        // A/B範囲外へのスライドを制限
         if (val < posA) { val = posA; e.target.value = posA; } else if (val > posB) { val = posB; e.target.value = posB; } 
         audio.currentTime = (val / 100) * audio.duration; 
         updateSeekStyle(); 
@@ -594,11 +593,8 @@
             const rect = seekWrapper.getBoundingClientRect();
             const thumbSize = 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-            
-            // つまみの中心座標にマーカーが追従するように逆算
             let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100;
             val = Math.max(0, Math.min(100, val));
-
             if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1);
             updateSeekStyle();
         }; 
