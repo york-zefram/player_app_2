@@ -47,6 +47,7 @@
             height: 100%;
             transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             will-change: transform;
+            backface-visibility: hidden;
         }
 
         #loading-overlay {
@@ -201,7 +202,9 @@
             top: 0; left: 0; width: 100%; height: 100%;
             overflow-y: auto; list-style: none; padding: 0; margin: 0; 
             border-top: 1px solid #222; -webkit-overflow-scrolling: touch;
-            transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+            will-change: transform;
+            backface-visibility: hidden;
         }
 
         .playlist-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--neon-blue); padding-bottom: 6px; }
@@ -381,26 +384,26 @@
         currentTargetFolder = null;
     });
 
-    // 階層移動用のアニメーション関数
+    // 階層移動用のアニメーション関数 (Android対応強化版)
     function goForwardLevel(folderName) {
         trackList.style.transition = 'none';
         trackList.style.transform = 'translateX(0)';
+        void trackList.offsetWidth; // 強制リフロー（Androidでの描画リセット）
         
         currentPath.push(folderName);
         renderList();
         
-        // 描画直後に右側に配置し、アニメーションで戻す
+        trackList.style.transform = 'translateX(100%)';
+        void trackList.offsetWidth; // 配置確定
+
         requestAnimationFrame(() => {
-            trackList.style.transform = 'translateX(100%)';
-            requestAnimationFrame(() => {
-                trackList.style.transition = 'transform 0.3s cubic-bezier(0.23, 1, 0.32, 1)';
-                trackList.style.transform = 'translateX(0)';
-            });
+            trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
+            trackList.style.transform = 'translateX(0)';
         });
     }
 
     function goBackLevel() {
-        trackList.style.transition = 'transform 0.3s cubic-bezier(0.23, 1, 0.32, 1)';
+        trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
         trackList.style.transform = 'translateX(100%)';
         
         setTimeout(() => {
@@ -408,11 +411,13 @@
             renderList();
             trackList.style.transition = 'none';
             trackList.style.transform = 'translateX(-100%)';
+            void trackList.offsetWidth; // 強制リフロー
+
             requestAnimationFrame(() => {
-                trackList.style.transition = 'transform 0.3s cubic-bezier(0.23, 1, 0.32, 1)';
+                trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
                 trackList.style.transform = 'translateX(0)';
             });
-        }, 200);
+        }, 250);
     }
 
     document.getElementById('btn-select-file').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
