@@ -384,17 +384,16 @@
         currentTargetFolder = null;
     });
 
-    // 階層移動用のアニメーション関数 (Android対応強化版)
     function goForwardLevel(folderName) {
         trackList.style.transition = 'none';
         trackList.style.transform = 'translateX(0)';
-        void trackList.offsetWidth; // 強制リフロー（Androidでの描画リセット）
+        void trackList.offsetWidth; 
         
         currentPath.push(folderName);
         renderList();
         
         trackList.style.transform = 'translateX(100%)';
-        void trackList.offsetWidth; // 配置確定
+        void trackList.offsetWidth; 
 
         requestAnimationFrame(() => {
             trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
@@ -411,7 +410,7 @@
             renderList();
             trackList.style.transition = 'none';
             trackList.style.transform = 'translateX(-100%)';
-            void trackList.offsetWidth; // 強制リフロー
+            void trackList.offsetWidth; 
 
             requestAnimationFrame(() => {
                 trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
@@ -628,7 +627,9 @@
     function setupDraggable(el, isA) { 
         let dragging = false;
         const move = (e) => { 
-            if (!dragging) return; isDragging = true; audio.muted = true;
+            if (!dragging) return; 
+            isDragging = true; 
+            // マーカー操作時はミュートにしない（音を流したままにする）
             const rect = seekWrapper.getBoundingClientRect(); const thumbSize = 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100;
@@ -636,7 +637,7 @@
             if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1);
             updateSeekStyle();
         }; 
-        const stop = () => { if (dragging) { dragging = false; audio.muted = false; setTimeout(() => isDragging = false, 200); } }; 
+        const stop = () => { if (dragging) { dragging = false; setTimeout(() => isDragging = false, 200); } }; 
         el.addEventListener('mousedown', () => dragging = true);
         el.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false}); 
         window.addEventListener('mousemove', move); window.addEventListener('touchmove', move, { passive: false });
