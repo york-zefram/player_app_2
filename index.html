@@ -644,7 +644,7 @@
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     
-    // 描画更新（画面点灯時のみ滑らかに動く）
+    // 描画更新用：画面点灯時のみ滑らかに動く
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
@@ -657,11 +657,14 @@
     }
     requestAnimationFrame(updateFrame);
 
-    // スリープ（バックグラウンド）対応のリピート判定
+    // スリープ（バックグラウンド）対応リピート判定：OSが監視を続けるイベントを活用
     audio.ontimeupdate = () => {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
-            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * duration;
+            // B点到達、または予期せぬ位置ズレ（A点より前）を検知してリピート
+            if (curP >= posB || curP < posA - 0.2) {
+                audio.currentTime = (posA / 100) * duration;
+            }
         }
     };
 
