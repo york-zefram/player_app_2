@@ -160,7 +160,13 @@
             top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0);
         }
 
-        .container-3 { display: flex; justify-content: center; align-items: center; gap: 20px; min-height: 80px; }
+        /* 再生ボタンエリア：margin-top を増やして位置を下げました */
+        .container-3 { 
+            display: flex; justify-content: center; align-items: center; gap: 20px; 
+            min-height: 80px; 
+            margin-top: 25px; 
+        }
+
         .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(0, 242, 255, 0.3); }
         .btn-large { width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); }
         .btn-small { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); opacity: 0.9; }
@@ -644,7 +650,7 @@
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     
-    // 描画更新用：画面点灯時のみ滑らかに動く
+    // 描画更新：画面点灯時のみ
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
@@ -657,11 +663,10 @@
     }
     requestAnimationFrame(updateFrame);
 
-    // スリープ（バックグラウンド）対応リピート判定：OSが監視を続けるイベントを活用
+    // スリープ対応リピート判定：audioイベントで実行
     audio.ontimeupdate = () => {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
-            // B点到達、または予期せぬ位置ズレ（A点より前）を検知してリピート
             if (curP >= posB || curP < posA - 0.2) {
                 audio.currentTime = (posA / 100) * duration;
             }
