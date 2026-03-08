@@ -104,48 +104,52 @@
             white-space: nowrap;
         }
 
-        .info-header { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 5px 0; }
-        .text-fields { width: 100%; height: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; }
-        .marquee-box { width: 100%; overflow: hidden; white-space: nowrap; text-align: center; min-height: 1.2em; }
+        .info-header { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 5px 0; }
+        .text-fields { width: 100%; height: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; overflow: hidden; }
+        .marquee-box { width: 100%; overflow: hidden; white-space: nowrap; text-align: center; min-height: 1.4em; }
         .marquee-inner { display: inline-block; white-space: nowrap; will-change: transform; }
         .scrolling-content { display: inline-block; padding-right: 50px; animation: scroll-slow 15s linear infinite; }
         @keyframes scroll-slow { 0% { transform: translateX(0); } 10% { transform: translateX(0); } 85% { transform: translateX(-50%); } 100% { transform: translateX(-50%); } }
         
-        #title-text { font-weight: bold; font-size: 1.0rem; line-height: 1.2; color: #fff; }
+        #title-text { font-weight: bold; font-size: 1.2rem; line-height: 1.2; color: #fff; }
         .artist-row { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
-        #artist-text { font-size: 0.8rem; color: var(--neon-blue); line-height: 1.2; }
+        #artist-text { font-size: 0.9rem; color: var(--neon-blue); line-height: 1.2; }
         
-        .btn-select { 
-            width: 90%;
-            height: 34px; border-radius: 17px; 
-            border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1);
-            color: var(--neon-blue); font-size: 0.8rem;
-            font-family: var(--font-header); font-weight: bold; letter-spacing: 2px;
-            box-shadow: 0 0 10px var(--neon-blue-glow), inset 0 0 5px var(--neon-blue-glow);
-            text-shadow: 0 0 5px var(--neon-blue-glow);
-            transition: all 0.2s ease;
-            margin-top: 5px;
-        }
-
         .status-action-row { 
             width: 100%;
             display: flex; justify-content: center; 
             margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         .time-group { display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: var(--font-header); }
-        #time-display { color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 0.5px; }
-        #ab-range-text { color: var(--neon-blue); font-size: 0.9rem; font-weight: bold; letter-spacing: 1px; }
+        #time-display { color: #fff; font-size: 1.3rem; font-weight: bold; letter-spacing: 0.5px; }
+        #ab-range-text { color: var(--neon-blue); font-size: 1.0rem; font-weight: bold; letter-spacing: 1px; }
 
         section.container-2 { 
             position: relative;
-            height: 60px; display: flex; align-items: center; justify-content: center;
+            height: 90px;
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 5px;
+            margin-bottom: 5px;
         }
         .seek-wrapper { 
             position: relative; width: 87%; height: 6px; display: flex; align-items: center; 
             background: rgba(255, 255, 255, 0.1); border-radius: 3px;
         }
+        
+        .seek-wrapper::before, .seek-wrapper::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            height: 4px;
+            background-image: linear-gradient(to right, var(--neon-blue) 1px, transparent 1px);
+            background-size: 10% 100%;
+            opacity: 0.2;
+        }
+        .seek-wrapper::before { top: -14px; }
+        .seek-wrapper::after { bottom: -14px; }
+
         .seek-bg-layer { position: absolute; top: 0; bottom: 0; background: var(--neon-blue); z-index: 1; border-radius: 3px; box-shadow: 0 0 15px var(--neon-blue-glow); }
-        input[type="range"]#main-seek { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 5; height: 40px; outline: none; margin: 0; padding: 0; }
+        input[type="range"]#main-seek { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 5; height: 60px; outline: none; margin: 0; padding: 0; }
         input[type="range"]#main-seek::-webkit-slider-thumb { -webkit-appearance: none; height: var(--thumb-size); width: var(--thumb-size); border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--neon-blue-glow); }
 
         .marker { 
@@ -171,11 +175,36 @@
         input[type="range"]#tempo-slider { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 5; height: 50px; outline: none; }
         input[type="range"]#tempo-slider::-webkit-slider-thumb { -webkit-appearance: none; height: var(--thumb-size); width: var(--thumb-size); border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 30px var(--neon-blue-glow); }
         
-        .tempo-controls { display: flex; justify-content: space-between; align-items: center; width: 90%; margin: 0 auto; }
-        .btn-tempo { height: 30px; border-radius: 15px; font-family: var(--font-header); font-size: 0.75rem; background: transparent !important; border: 2px solid var(--neon-blue); color: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue-glow); }
+        .tempo-controls { display: flex; justify-content: space-between; align-items: center; width: 90%; margin: 0 auto; gap: 8px; }
+        .btn-tempo { 
+            flex: 1; height: 30px; border-radius: 15px; 
+            font-family: var(--font-header); font-size: 0.8rem; 
+            background: transparent !important; border: 2px solid var(--neon-blue); 
+            color: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue-glow); 
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            letter-spacing: 0.5px;
+            padding-top: 1px;
+            -webkit-font-smoothing: antialiased;
+        }
 
-        .container-folder-scan { display: flex; justify-content: center; align-items: center; margin-top: 10px; }
-        .btn-folder-scan { width: 90%; height: 34px; border-radius: 17px; border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1); color: var(--neon-blue); font-family: var(--font-header); font-weight: bold; box-shadow: 0 0 10px var(--neon-blue-glow); }
+        .container-footer-buttons { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 10px; 
+            width: 90%; 
+            margin: auto auto 20px; 
+        }
+        .btn-footer {
+            height: 44px; border-radius: 22px; 
+            border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1); 
+            color: var(--neon-blue); font-family: var(--font-header); font-weight: bold; 
+            box-shadow: 0 0 10px var(--neon-blue-glow);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+        }
+        .btn-footer-icon { width: 60px; } 
+        .btn-footer-text { flex: 1; font-size: 1.0rem; letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-blue-glow); }
 
         #playlist-overlay { 
             flex: 0 0 100vw; 
@@ -213,12 +242,23 @@
         .breadcrumb { font-size: 0.5rem; color: var(--neon-blue); margin: 6px 0; border-bottom: 1px solid #333; padding-bottom: 4px; font-family: var(--font-header); text-transform: uppercase; }
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
-        .item.folder { color: var(--neon-blue); font-weight: bold; font-size: 0.75rem; align-items: center; height: 38px; line-height: 38px; }
-        .item.track { padding: 6px 0; flex-direction: column; justify-content: center; min-height: 38px; }
+        
+        /* リスト項目のフォントサイズ調整 */
+        .item.folder { 
+            color: var(--neon-blue); font-weight: bold; 
+            font-size: 0.9rem; /* 0.75rem -> 0.9rem に拡大 */
+            align-items: center; height: 44px; line-height: 44px; 
+        }
+        .item.track { padding: 8px 0; flex-direction: column; justify-content: center; min-height: 44px; }
         .item-upper { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-        .item-lower { display: block; color: #888; font-size: 0.55rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-name-part { flex: 1; font-size: 0.7rem; color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; }
-        .track-duration-part { flex-shrink: 0; color: #888; font-size: 0.55rem; font-family: var(--font-header); text-align: right; min-width: 38px; }
+        .item-lower { display: block; color: #888; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .track-name-part { 
+            flex: 1; 
+            font-size: 0.85rem; /* 0.7rem -> 0.85rem に拡大 */
+            color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; 
+        }
+        .track-duration-part { flex-shrink: 0; color: #888; font-size: 0.65rem; font-family: var(--font-header); text-align: right; min-width: 44px; }
     </style>
 </head>
 <body>
@@ -236,7 +276,6 @@
                 <div class="marquee-box" id="title-box"><div id="title-inner" class="marquee-inner"><span id="title-text">SELECT TRACK</span></div></div>
                 <div class="artist-row">
                     <div class="marquee-box" id="artist-box"><div id="artist-inner" class="marquee-inner"><span id="artist-text">UNKNOWN ARTIST</span></div></div>
-                    <button class="btn-select" id="btn-select-file">SELECT TRACK</button>
                 </div>
             </div>
             <div class="status-action-row">
@@ -259,7 +298,7 @@
         <section class="container-3">
             <button class="main-btn btn-small" id="btn-set-a"><span class="btn-icon-s">A</span></button>
             <button class="main-btn btn-large" id="btn-back-to-a"><span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></span></button>
-            <button class="main-btn btn-large" id="btn-play"><span class="btn-icon" id="play-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></button>
+            <button class="main-btn btn-play btn-large" id="btn-play"><span class="btn-icon" id="play-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></button>
             <button class="main-btn btn-small" id="btn-set-b"><span class="btn-icon-s">B</span></button>
         </section>
 
@@ -276,11 +315,12 @@
             </div>
         </section>
 
-        <section class="container-folder-scan">
-            <button class="btn-folder-scan" id="btn-folder-scan" style="position:relative;">
-                FOLDER SCAN
-                <input type="file" id="folder-input" webkitdirectory directory multiple style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0;">
+        <section class="container-footer-buttons">
+            <button class="btn-footer btn-footer-icon" id="btn-folder-scan" style="position:relative;">
+                <svg class="svg-icon" style="font-size:1.4rem;" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                <input type="file" id="folder-input" webkitdirectory directory multiple style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
             </button>
+            <button class="btn-footer btn-footer-text" id="btn-open-playlist">SELECT TRACK</button>
         </section>
     </div>
 
@@ -328,14 +368,12 @@
         appContainer.style.transform = `translateX(${currentPage === 0 ? 0 : -50}%)`;
     }
 
-    // スワイプ制御
     let startX = 0, startY = 0, isSwiping = false, currentTargetFolder = null;
 
     window.addEventListener('touchstart', (e) => {
         isSwiping = true;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
-        
         if (currentPage === 1) {
             currentTargetFolder = e.target.closest('.item.folder');
             appContainer.style.transition = 'none';
@@ -348,7 +386,6 @@
         const currentY = e.touches[0].clientY;
         const diffX = currentX - startX;
         const diffY = currentY - startY;
-
         if (Math.abs(diffX) > Math.abs(diffY)) {
             if (currentPage === 1) {
                 if (diffX > 0 && currentPath.length === 0) {
@@ -364,20 +401,12 @@
         isSwiping = false;
         const endX = e.changedTouches[0].clientX;
         const diffX = endX - startX;
-
         if (currentPage === 1) {
             if (diffX > 80) {
-                if (currentPath.length > 0) {
-                    goBackLevel();
-                } else {
-                    navigateTo(0);
-                }
-            } 
-            else if (diffX < -80 && currentTargetFolder) {
+                if (currentPath.length > 0) goBackLevel(); else navigateTo(0);
+            } else if (diffX < -80 && currentTargetFolder) {
                 const folderName = currentTargetFolder.getAttribute('data-folder');
-                if (folderName && folderName !== "__parent__") {
-                    goForwardLevel(folderName);
-                }
+                if (folderName && folderName !== "__parent__") goForwardLevel(folderName);
             } else {
                 navigateTo(currentPage);
             }
@@ -389,13 +418,10 @@
         trackList.style.transition = 'none';
         trackList.style.transform = 'translateX(0)';
         void trackList.offsetWidth; 
-        
         currentPath.push(folderName);
         renderList();
-        
         trackList.style.transform = 'translateX(100%)';
         void trackList.offsetWidth; 
-
         requestAnimationFrame(() => {
             trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
             trackList.style.transform = 'translateX(0)';
@@ -405,14 +431,12 @@
     function goBackLevel() {
         trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
         trackList.style.transform = 'translateX(100%)';
-        
         setTimeout(() => {
             currentPath.pop();
             renderList();
             trackList.style.transition = 'none';
             trackList.style.transform = 'translateX(-100%)';
             void trackList.offsetWidth; 
-
             requestAnimationFrame(() => {
                 trackList.style.transition = 'transform 0.35s cubic-bezier(0.23, 1, 0.32, 1)';
                 trackList.style.transform = 'translateX(0)';
@@ -420,7 +444,7 @@
         }, 250);
     }
 
-    document.getElementById('btn-select-file').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
+    document.getElementById('btn-open-playlist').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
     const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore";
@@ -478,6 +502,22 @@
         } catch (e) { return false; }
     }
 
+    folderInput.onchange = async (e) => {
+        if (!window.showDirectoryPicker && folderInput.files.length > 0) {
+            allFiles = [];
+            for (let i = 0; i < folderInput.files.length; i++) {
+                const f = folderInput.files[i];
+                if (f.type.startsWith('audio/') || f.name.match(/\.(mp3|m4a|wav)$/i)) {
+                    const pathArr = f.webkitRelativePath.split('/');
+                    allFiles.push({ name: f.name, path: pathArr, file: f });
+                }
+            }
+            currentPath = [];
+            renderList();
+            navigateTo(1);
+        }
+    };
+
     document.getElementById('btn-folder-scan').onclick = async (e) => {
         if (window.showDirectoryPicker) {
             e.preventDefault();
@@ -500,12 +540,8 @@
         trackList.innerHTML = '';
         document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
         if (currentPath.length > 0) {
-            const up = document.createElement('li'); 
-            up.className = 'item folder'; 
-            up.innerText = `.. (BACK)`;
-            up.setAttribute('data-folder', '__parent__');
-            up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; 
-            trackList.appendChild(up);
+            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.setAttribute('data-folder', '__parent__');
+            up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
@@ -515,12 +551,8 @@
             }
         });
         dirs.forEach(d => {
-            const li = document.createElement('li'); 
-            li.className = 'item folder'; 
-            li.innerText = d.toUpperCase();
-            li.setAttribute('data-folder', d);
-            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; 
-            trackList.appendChild(li);
+            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
+            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
         files.forEach(f => {
             const li = document.createElement('li'), uniqueId = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
@@ -628,9 +660,7 @@
     function setupDraggable(el, isA) { 
         let dragging = false;
         const move = (e) => { 
-            if (!dragging) return; 
-            isDragging = true; 
-            // マーカー操作時はミュートにしない（音を流したままにする）
+            if (!dragging) return; isDragging = true; 
             const rect = seekWrapper.getBoundingClientRect(); const thumbSize = 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100;
@@ -645,10 +675,8 @@
         window.addEventListener('mouseup', stop); window.addEventListener('touchend', stop, {passive: true}); 
     }
     setupDraggable(markerA, true); setupDraggable(markerB, false);
-
     window.onload = () => { updateSeekStyle(); checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); loadSavedList(); };
     window.onresize = () => updateSeekStyle();
 </script>
 </body>
 </html>
-
