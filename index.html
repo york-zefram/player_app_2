@@ -243,19 +243,27 @@
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
         
-        /* リスト項目のフォントサイズ調整 */
+        /* リスト項目の統一調整 */
         .item.folder { 
             color: var(--neon-blue); font-weight: bold; 
-            font-size: 0.9rem; /* 0.75rem -> 0.9rem に拡大 */
-            align-items: center; height: 44px; line-height: 44px; 
+            font-size: 0.9rem;
+            align-items: center; 
+            height: 44px; /* トラックリストと高さを統一 */
+            line-height: 44px; 
+            padding: 0 8px; /* 視認性向上のための横余白 */
         }
-        .item.track { padding: 8px 0; flex-direction: column; justify-content: center; min-height: 44px; }
+        .item.track { 
+            padding: 0 8px; /* フォルダと横位置を合わせる */
+            flex-direction: column; 
+            justify-content: center; 
+            height: 44px; /* トラックリストの高さを固定で統一 */
+        }
         .item-upper { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .item-lower { display: block; color: #888; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         .track-name-part { 
             flex: 1; 
-            font-size: 0.85rem; /* 0.7rem -> 0.85rem に拡大 */
+            font-size: 0.85rem;
             color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; 
         }
         .track-duration-part { flex-shrink: 0; color: #888; font-size: 0.65rem; font-family: var(--font-header); text-align: right; min-width: 44px; }
