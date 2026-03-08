@@ -243,20 +243,19 @@
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
         
-        /* リスト項目の統一調整 */
         .item.folder { 
             color: var(--neon-blue); font-weight: bold; 
             font-size: 0.9rem;
             align-items: center; 
-            height: 44px; /* トラックリストと高さを統一 */
+            height: 44px; 
             line-height: 44px; 
-            padding: 0 8px; /* 視認性向上のための横余白 */
+            padding: 0 8px; 
         }
         .item.track { 
-            padding: 0 8px; /* フォルダと横位置を合わせる */
+            padding: 0 8px; 
             flex-direction: column; 
             justify-content: center; 
-            height: 44px; /* トラックリストの高さを固定で統一 */
+            height: 44px; 
         }
         .item-upper { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .item-lower { display: block; color: #888; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -645,10 +644,10 @@
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     
+    // 描画更新（画面点灯時のみ滑らかに動く）
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
-            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * duration;
             seek.value = curP;
             const timeStr = `${formatTime(curTime)} / ${formatTime(duration)}`;
             if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
@@ -657,6 +656,14 @@
         requestAnimationFrame(updateFrame);
     }
     requestAnimationFrame(updateFrame);
+
+    // スリープ（バックグラウンド）対応のリピート判定
+    audio.ontimeupdate = () => {
+        if (audio.duration && !isDragging) {
+            const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
+            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * duration;
+        }
+    };
 
     seek.oninput = (e) => { isDragging = true; audio.muted = true; let val = parseFloat(e.target.value); if (val < posA) val = posA; else if (val > posB) val = posB; e.target.value = val; audio.currentTime = (val / 100) * audio.duration; updateSeekStyle(); };
     seek.onchange = () => { isDragging = false; audio.muted = false; };
