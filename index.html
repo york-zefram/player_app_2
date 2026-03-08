@@ -160,11 +160,11 @@
             top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0);
         }
 
-        /* 再生ボタンエリア：margin-top を増やして位置を下げました */
+        /* 再生ボタンエリア：位置をさらに下げました */
         .container-3 { 
             display: flex; justify-content: center; align-items: center; gap: 20px; 
             min-height: 80px; 
-            margin-top: 25px; 
+            margin-top: 40px; 
         }
 
         .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(0, 242, 255, 0.3); }
@@ -650,7 +650,7 @@
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     
-    // 描画更新：画面点灯時のみ
+    // 描画更新
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
@@ -663,7 +663,7 @@
     }
     requestAnimationFrame(updateFrame);
 
-    // スリープ対応リピート判定：audioイベントで実行
+    // スリープ（バックグラウンド）対応ABリピート判定
     audio.ontimeupdate = () => {
         if (audio.duration && !isDragging) {
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
