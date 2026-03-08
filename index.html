@@ -100,7 +100,7 @@
         .app-title { 
             margin: 0;
             color: var(--neon-blue); font-family: var(--font-header);
-            font-size: 0.85rem; letter-spacing: 1px; text-shadow: 0 0 10px var(--neon-blue-glow); 
+            font-size: 1.1rem; letter-spacing: 1px; text-shadow: 0 0 10px var(--neon-blue-glow); 
             white-space: nowrap;
         }
 
@@ -177,12 +177,12 @@
         
         .tempo-controls { display: flex; justify-content: space-between; align-items: center; width: 90%; margin: 0 auto; gap: 8px; }
         .btn-tempo { 
-            flex: 1; height: 30px; border-radius: 15px; 
-            font-family: var(--font-header); font-size: 0.8rem; 
+            flex: 1; height: 40px; border-radius: 30px; 
+            font-family: var(--font-header); font-size: 1rem; 
             background: transparent !important; border: 2px solid var(--neon-blue); 
             color: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue-glow); 
             cursor: pointer; display: flex; align-items: center; justify-content: center;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             padding-top: 1px;
             -webkit-font-smoothing: antialiased;
         }
@@ -243,19 +243,20 @@
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
         
+        /* リスト項目の統一調整 */
         .item.folder { 
             color: var(--neon-blue); font-weight: bold; 
             font-size: 0.9rem;
             align-items: center; 
-            height: 44px; 
+            height: 44px; /* トラックリストと高さを統一 */
             line-height: 44px; 
-            padding: 0 8px; 
+            padding: 0 8px; /* 視認性向上のための横余白 */
         }
         .item.track { 
-            padding: 0 8px; 
+            padding: 0 8px; /* フォルダと横位置を合わせる */
             flex-direction: column; 
             justify-content: center; 
-            height: 44px; 
+            height: 44px; /* トラックリストの高さを固定で統一 */
         }
         .item-upper { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .item-lower { display: block; color: #888; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -368,23 +369,6 @@
     let posA = 0, posB = 100, isDragging = false, lastTimeStr = "";
     let currentObjectUrl = null;
     let currentPage = 0; 
-
-    // --- Wake Lock implementation ---
-    let wakeLock = null;
-    async function requestWakeLock() {
-        try {
-            if ('wakeLock' in navigator) {
-                wakeLock = await navigator.wakeLock.request('screen');
-                wakeLock.addEventListener('release', () => { console.log('Wake Lock released'); });
-            }
-        } catch (err) { console.error(`${err.name}, ${err.message}`); }
-    }
-    // アプリが再開された時に再取得
-    document.addEventListener('visibilitychange', async () => {
-        if (wakeLock !== null && document.visibilityState === 'visible') {
-            await requestWakeLock();
-        }
-    });
 
     function navigateTo(page) {
         currentPage = page;
@@ -621,7 +605,6 @@
 
     tapToStart.onclick = async (e) => {
         e.stopPropagation();
-        await requestWakeLock(); // 再生開始時にWake Lockをリクエスト
         if (directoryHandle && allFiles.some(f => !f.file)) {
             if (await verifyAndLinkFiles()) { loadingOverlay.style.display = 'none'; if (audio.src) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } }
         } else {
@@ -662,24 +645,10 @@
     tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
     document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     
-    // --- Loop Check Logic ---
-    function checkABLoop() {
-        if (audio.duration && !isDragging) {
-            const curP = (audio.currentTime / audio.duration) * 100;
-            // B点を超えた、あるいはA点より手前に戻りすぎた場合にリピート
-            if (curP >= posB || curP < posA - 0.2) {
-                audio.currentTime = (posA / 100) * audio.duration;
-            }
-        }
-    }
-
-    // バックグラウンドでの最小限の動作を維持するためにtimeupdateイベントを追加
-    audio.addEventListener('timeupdate', checkABLoop);
-
     function updateFrame() {
         if (audio.duration && !isDragging) {
-            checkABLoop(); // requestAnimationFrame内でも実行（滑らかさのため）
             const curTime = audio.currentTime, duration = audio.duration, curP = (curTime / duration) * 100;
+            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * duration;
             seek.value = curP;
             const timeStr = `${formatTime(curTime)} / ${formatTime(duration)}`;
             if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
