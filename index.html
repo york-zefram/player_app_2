@@ -256,15 +256,19 @@
             backface-visibility: hidden;
         }
 
+        #track-list::-webkit-scrollbar { display: none; }
+        #track-list { -ms-overflow-style: none; scrollbar-width: none; }
+
         .playlist-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--neon-blue); padding-bottom: 6px; }
         #btn-close-list { 
-            background:none; border:2px solid var(--neon-blue); color:var(--neon-blue); 
-            width: 44px; height: 44px; border-radius: 50%; 
-            font-size: 0.45rem; font-family: var(--font-header); 
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 8px var(--neon-blue-glow);
+            background:none; border:none; color:var(--neon-blue); 
+            font-size: 0.7rem; font-family: var(--font-header); 
+            font-weight: bold;
+            cursor: pointer;
+            padding: 5px 0 5px 10px;
+            text-shadow: 0 0 8px var(--neon-blue-glow);
         }
-        .breadcrumb { font-size: 0.5rem; color: var(--neon-blue); margin: 6px 0; border-bottom: 1px solid #333; padding-bottom: 4px; font-family: var(--font-header); text-transform: uppercase; }
+        .breadcrumb { font-size: 0.7rem; color: var(--neon-blue); margin: 6px 0; border-bottom: none; padding-bottom: 4px; font-family: var(--font-header); text-transform: uppercase; }
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
         
@@ -366,7 +370,7 @@
 
     <div id="playlist-overlay">
         <div class="playlist-header">
-            <span style="color:var(--neon-blue); font-family:var(--font-header); font-size:0.55rem;">MUSIC PLAYLIST</span>
+            <span style="color:var(--neon-blue); font-family:var(--font-header); font-size:0.7rem;">MUSIC LIST</span>
             <button id="btn-close-list">CLOSE</button>
         </div>
         <div id="breadcrumb" class="breadcrumb">ROOT /</div>
