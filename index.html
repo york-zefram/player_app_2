@@ -114,15 +114,18 @@
         .artist-row { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
         #artist-text { font-size: 0.9rem; color: var(--neon-blue); line-height: 1.2; }
         
+        /* 修正：配置の仕組みをcontainer-3と統一 */
         .status-action-row { 
             width: 100%;
             display: flex; 
-            justify-content: space-between; 
+            justify-content: center; /* 中央寄せに変更 */
             align-items: center;
+            gap: 24px; /* A/Bボタン群のgap(20px)にボタンサイズ差を考慮して微調整 */
             margin-top: 5px; 
-            padding: 10px 0;
+            padding: 10px 0; 
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
         }
         
         .btn-status-side {
@@ -141,7 +144,8 @@
             align-items: center; 
             gap: 4px; 
             font-family: var(--font-header);
-            flex-grow: 1;
+            /* 中央寄せの中での幅を確保 */
+            min-width: 140px; 
         }
         #time-display { color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 0.5px; }
         #ab-range-text { color: var(--neon-blue); font-size: 0.85rem; font-weight: bold; letter-spacing: 1px; }
@@ -167,39 +171,21 @@
             background: rgba(255, 255, 255, 0.1); border-radius: 3px;
         }
         
-        /* 修正：左右を完全に分離して10%刻みを実現 */
         .seek-wrapper::before, .seek-wrapper::after {
             content: '';
             position: absolute;
             left: 0;
             width: 100%;
             height: 4px;
-            /* 左半分を0%起点、右半分を100%起点として描画を分担 */
             background-image: 
                 linear-gradient(to right, var(--neon-blue) 1.5px, transparent 1.5px),
                 linear-gradient(to left, var(--neon-blue) 1.5px, transparent 1.5px);
             background-position: left center, right center;
-            /* 左右それぞれの50%エリアに対し、20%（エリア内での5分割）を指定 */
-            background-size: 50% 100%; 
-            background-repeat: no-repeat;
-            /* 実際の目盛りとしての繰り返し（エリア内の20%間隔）を適用 */
-            -webkit-mask-image: 
-                linear-gradient(to right, #fff 1.5px, transparent 1.5px),
-                linear-gradient(to left, #fff 1.5px, transparent 1.5px);
-            -webkit-mask-size: 10% 100%;
-            -webkit-mask-repeat: repeat-x;
-            opacity: 0.2;
-            pointer-events: none;
-        }
-        /* CSSマスクを使わずに、左右レイヤーを背景合成で直接定義 */
-        .seek-wrapper::before, .seek-wrapper::after {
-            background-image: 
-                linear-gradient(to right, var(--neon-blue) 1.5px, transparent 1.5px),
-                linear-gradient(to left, var(--neon-blue) 1.5px, transparent 1.5px);
             background-size: 10.02% 100%, 10.02% 100%;
-            background-position: left center, right center;
             background-repeat: repeat-x;
             -webkit-mask-image: none;
+            opacity: 0.2;
+            pointer-events: none;
         }
         .seek-wrapper::before { top: -14px; }
         .seek-wrapper::after { bottom: -14px; }
@@ -290,14 +276,15 @@
         #track-list { -ms-overflow-style: none; scrollbar-width: none; }
 
         .playlist-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--neon-blue); padding-bottom: 6px; }
+        
+        .playlist-header span { color:var(--neon-blue); font-family:var(--font-header); font-size:0.6rem; }
         #btn-close-list { 
-            background:none; border:2px solid var(--neon-blue); color:var(--neon-blue); 
-            width: 44px; height: 44px; border-radius: 50%; 
-            font-size: 0.45rem; font-family: var(--font-header); 
+            background:none; border:none; color:var(--neon-blue); 
+            font-size: 0.6rem; font-family: var(--font-header); 
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 8px var(--neon-blue-glow);
+            box-shadow: none; padding: 0; margin: 0; cursor: pointer;
         }
-        .breadcrumb { font-size: 0.5rem; color: var(--neon-blue); margin: 6px 0; border-bottom: 1px solid #333; padding-bottom: 4px; font-family: var(--font-header); text-transform: uppercase; }
+        .breadcrumb { font-size: 0.6rem; color: var(--neon-blue); margin: 6px 0; border-bottom: 1px solid #333; padding-bottom: 4px; font-family: var(--font-header); text-transform: uppercase; }
         
         .item { border-bottom: 1px solid #222; display: flex; text-align: left; box-sizing: border-box; }
         
@@ -399,7 +386,7 @@
 
     <div id="playlist-overlay">
         <div class="playlist-header">
-            <span style="color:var(--neon-blue); font-family:var(--font-header); font-size:0.55rem;">MUSIC PLAYLIST</span>
+            <span>MUSIC PLAYLIST</span>
             <button id="btn-close-list">CLOSE</button>
         </div>
         <div id="breadcrumb" class="breadcrumb">ROOT /</div>
@@ -526,7 +513,7 @@
 
     const openDB = () => new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 2);
-        request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
+        request.onupgradedeeded = (e) => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
         request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);
     });
