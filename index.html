@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ZEFRAM PLAYER NEO</title>
     <meta name="apple-mobile-web-app-title" content="ZPN">
-    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
+    <link rel="manifest" href="manifest.json">
     <link rel="ZPN-icon" href="icon.png">
     <meta name="ZPN-web-app-capable" content="yes">
     <meta name="ZPN-web-app-status-bar-style" content="black-translucent">
@@ -114,13 +114,12 @@
         .artist-row { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
         #artist-text { font-size: 0.9rem; color: var(--neon-blue); line-height: 1.2; }
         
-        /* 修正：配置の仕組みをcontainer-3と統一 */
         .status-action-row { 
             width: 100%;
             display: flex; 
-            justify-content: center; /* 中央寄せに変更 */
+            justify-content: center; 
             align-items: center;
-            gap: 24px; /* A/Bボタン群のgap(20px)にボタンサイズ差を考慮して微調整 */
+            gap: 24px; 
             margin-top: 5px; 
             padding: 10px 0; 
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -144,7 +143,6 @@
             align-items: center; 
             gap: 4px; 
             font-family: var(--font-header);
-            /* 中央寄せの中での幅を確保 */
             min-width: 140px; 
         }
         #time-display { color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 0.5px; }
@@ -507,35 +505,50 @@
     document.getElementById('btn-open-playlist').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
+    // --- Database Initialization Fix ---
     const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore";
+    const DB_VERSION = 20; // Forced upgrade
     const folderInput = document.getElementById('folder-input');
     let allFiles = [], currentPath = [], directoryHandle = null;
 
     const openDB = () => new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 2);
-        request.onupgradedeeded = (e) => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradedeeded = (e) => { 
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+                console.log("Database Store Created.");
+            }
+        };
         request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);
     });
 
     async function saveState() {
-        const db = await openDB();
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.put(directoryHandle, "folder_handle");
-        store.put(allFiles.map(f => ({ name: f.name, path: f.path })), "file_list");
+        try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            store.put(directoryHandle, "folder_handle");
+            store.put(allFiles.map(f => ({ name: f.name, path: f.path })), "file_list");
+        } catch (e) { console.error("Save state failed:", e); }
     }
 
     async function loadSavedList() {
-        const db = await openDB();
-        const tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
-        directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        if (directoryHandle && savedList) {
-            allFiles = savedList.map(m => ({ ...m, file: null })); renderList();
-            tapToStart.innerText = "RESTORE FOLDER ACCESS";
-            loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; tapToStart.style.display = 'block';
-        } else {
+        try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
+            directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+            const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+            if (directoryHandle && savedList) {
+                allFiles = savedList.map(m => ({ ...m, file: null })); renderList();
+                tapToStart.innerText = "RESTORE FOLDER ACCESS";
+                loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; tapToStart.style.display = 'block';
+            } else {
+                loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; tapToStart.innerText = "START PLAYER"; tapToStart.style.display = 'block';
+            }
+        } catch (e) {
+            console.warn("DB initialization failed, skipping load:", e);
             loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; tapToStart.innerText = "START PLAYER"; tapToStart.style.display = 'block';
         }
     }
