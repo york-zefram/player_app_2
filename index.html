@@ -181,7 +181,6 @@
             <div class="status-action-row">
                 <button class="btn-status-side" id="btn-folder-scan" style="position:relative;">
                     <svg class="svg-icon" style="font-size:1.4rem;" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-                    <input type="file" id="folder-input" webkitdirectory directory multiple style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer; display:none;">
                 </button>
                 <div class="time-group">
                     <div id="time-display">00:00 / 00:00</div>
@@ -251,28 +250,30 @@
     const seekWrapper = document.getElementById('seek-wrapper');
     const appContainer = document.getElementById('app-container');
     const trackList = document.getElementById('track-list');
-    const appTitle = document.getElementById('main-app-title');
-    const btnHeaderAction = document.getElementById('btn-header-action');
     const albumArt = document.getElementById('album-art');
     const defaultArtIcon = document.getElementById('default-art-icon');
 
     const ICON_PLAY = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
     const ICON_PAUSE = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M6.5 19h4V5h-4v14zm9 0h4V5h-4v14z"/></svg>';
     
-    let posA = 0, posB = 100, isDragging = false;
-    let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
-    let currentPlayingFileName = ""; 
-
-    btnHeaderAction.onclick = () => {
-        const isLite = document.body.classList.toggle('is-lite');
-        appTitle.innerText = isLite ? "ZEFRAM PLAYER LITE" : "ZEFRAM PLAYER NEO";
-        updateSeekStyle();
-    };
+    let posA = 0, posB = 100, isDragging = false, currentPage = 0;
+    let currentObjectUrl = null, currentArtUrl = null, currentPlayingFileName = ""; 
 
     function navigateTo(page) {
         currentPage = page;
         appContainer.style.transform = `translateX(${currentPage === 0 ? 0 : -50}%)`;
     }
+
+    /* --- Swipe Logic (右スワイプでプレイヤーへ戻る) --- */
+    let touchStartX = 0;
+    trackList.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, {passive: true});
+    trackList.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        if (touchEndX - touchStartX > 80) {
+            // 右スワイプの行き止まりは常にプレイヤー画面
+            navigateTo(0);
+        }
+    }, {passive: true});
 
     /* --- DB & Folder Logic --- */
     const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore", DB_VERSION = 20; 
@@ -289,12 +290,6 @@
         await store.put(directoryHandle, "folder_handle");
     }
 
-    async function loadSavedList() {
-        const db = await openDB(), tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
-        directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        if (directoryHandle) tapToStart.innerText = "RESTORE FOLDER ACCESS";
-    }
-
     async function scanFolder(handle) {
         tapToStart.innerText = "SCANNING...";
         allFiles = [];
@@ -307,9 +302,7 @@
         }
         await scan(handle, [handle.name]);
         for (let f of allFiles) f.file = await f.handle.getFile();
-        renderList();
-        saveState();
-        loadingOverlay.style.display = 'none';
+        renderList(); saveState(); loadingOverlay.style.display = 'none';
     }
 
     tapToStart.onclick = async () => {
@@ -321,24 +314,15 @@
             try {
                 directoryHandle = await window.showDirectoryPicker();
                 await scanFolder(directoryHandle);
-            } catch (e) { document.getElementById('folder-input').click(); loadingOverlay.style.display = 'none'; }
+            } catch (e) {}
         }
     };
 
-    /* --- Swipe Logic (右スワイプで戻る) --- */
-    let touchStartX = 0;
-    trackList.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, {passive: true});
-    trackList.addEventListener('touchend', (e) => {
-        const touchEndX = e.changedTouches[0].clientX;
-        if (touchEndX - touchStartX > 80 && currentPath.length > 0) goBackLevel();
-    }, {passive: true});
-
-    /* --- UI & Player Logic --- */
     function renderList() {
         trackList.innerHTML = '';
         document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
         if (currentPath.length > 0) {
-            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = goBackLevel; trackList.appendChild(up);
+            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); currentPath.pop(); renderList(); }; trackList.appendChild(up);
         }
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
@@ -348,13 +332,13 @@
             }
         });
         dirs.forEach(d => {
-            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.onclick = () => goForwardLevel(d); trackList.appendChild(li);
+            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.onclick = (e) => { e.stopPropagation(); currentPath.push(d); renderList(); }; trackList.appendChild(li);
         });
         files.forEach(f => {
             const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`;
             li.className = 'item track';
             li.innerHTML = `<div class="item-upper"><span class="track-name-part">${f.name.split('.').slice(0,-1).join('.')}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">LOADING...</div>`;
-            li.onclick = () => { loadTrack(f); navigateTo(0); };
+            li.onclick = () => { loadTrack(f.file || f.handle.getFile()); navigateTo(0); };
             trackList.appendChild(li);
             if (f.file) {
                 const url = URL.createObjectURL(f.file), t = new Audio(url);
@@ -364,12 +348,9 @@
         });
     }
 
-    function goForwardLevel(d) { currentPath.push(d); renderList(); }
-    function goBackLevel() { currentPath.pop(); renderList(); }
-
-    async function loadTrack(fileObj, isAuto = false) {
+    async function loadTrack(filePromise, isAuto = false) {
         audio.pause();
-        const file = fileObj.handle ? await fileObj.handle.getFile() : fileObj.file;
+        const file = await filePromise;
         currentPlayingFileName = file.name;
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file);
@@ -406,18 +387,12 @@
     }
 
     function updateSeekStyle() {
-        const isLite = document.body.classList.contains('is-lite');
         const rectWidth = seekWrapper.clientWidth, thumbSize = 32;
         const getX = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
-        if (isLite) {
-            const p = (audio.currentTime / audio.duration) * 100 || 0;
-            seekBg.style.transform = `translate3d(0, 0, 0)`; seekBg.style.width = `${(p/100) * rectWidth}px`;
-        } else {
-            const xA = getX(posA), xB = getX(posB);
-            markerA.style.transform = `translate3d(${xA}px, -50%, 0)`; markerB.style.transform = `translate3d(${xB}px, -50%, 0)`;
-            seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; seekBg.style.width = `${xB - xA}px`;
-            if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
-        }
+        const xA = getX(posA), xB = getX(posB);
+        markerA.style.transform = `translate3d(${xA}px, -50%, 0)`; markerB.style.transform = `translate3d(${xB}px, -50%, 0)`;
+        seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; seekBg.style.width = `${xB - xA}px`;
+        if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
     }
     
     function formatTime(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s / 60), sec = Math.floor(s % 60); return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`; }
@@ -425,81 +400,31 @@
     function updateFrame() {
         if (audio.duration && !isDragging) {
             const cur = audio.currentTime, dur = audio.duration, curP = (cur / dur) * 100;
-            seek.value = curP;
-            timeDisplay.innerText = `${formatTime(cur)} / ${formatTime(dur)}`;
+            seek.value = curP; timeDisplay.innerText = `${formatTime(cur)} / ${formatTime(dur)}`;
             updateSeekStyle();
-            if (!document.body.classList.contains('is-lite') && (curP >= posB || curP < posA - 0.2)) audio.currentTime = (posA / 100) * dur;
+            if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * dur;
         }
         requestAnimationFrame(updateFrame);
     }
     requestAnimationFrame(updateFrame);
 
-    seek.oninput = (e) => { 
-        isDragging = true;
-        let val = parseFloat(e.target.value); 
-        if (!document.body.classList.contains('is-lite')) val = Math.max(posA, Math.min(posB, val));
-        e.target.value = val; audio.currentTime = (val / 100) * audio.duration;
-    };
+    seek.oninput = (e) => { isDragging = true; let val = parseFloat(e.target.value); val = Math.max(posA, Math.min(posB, val)); e.target.value = val; audio.currentTime = (val / 100) * audio.duration; };
     seek.onchange = () => isDragging = false;
 
-    document.getElementById('btn-play').onclick = () => {
-        if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
-        else { audio.pause(); playIcon.innerHTML = ICON_PLAY; }
-    };
+    document.getElementById('btn-play').onclick = () => { if (audio.paused) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } else { audio.pause(); playIcon.innerHTML = ICON_PLAY; } };
     document.getElementById('btn-set-a').onclick = () => { posA = (audio.currentTime / audio.duration) * 100; updateSeekStyle(); };
     document.getElementById('btn-set-b').onclick = () => { posB = (audio.currentTime / audio.duration) * 100; updateSeekStyle(); };
     document.getElementById('btn-back-to-a').onclick = () => { audio.currentTime = (posA / 100) * audio.duration; audio.play(); playIcon.innerHTML = ICON_PAUSE; };
 
-    function setupDraggable(el, isA) { 
-        let dragging = false;
-        const move = (e) => {
-            if (!dragging) return;
-            const rect = seekWrapper.getBoundingClientRect(), thumbSize = 32;
-            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-            let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100;
-            val = Math.max(0, Math.min(100, val));
-            if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1);
-            updateSeekStyle();
-        };
-        el.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
-        el.addEventListener('mousedown', () => { dragging = true; });
-        window.addEventListener('touchmove', move, {passive: false});
-        window.addEventListener('mousemove', move);
-        window.addEventListener('touchend', () => dragging = false);
-        window.addEventListener('mouseup', () => dragging = false);
-    }
-    setupDraggable(markerA, true); setupDraggable(markerB, false);
-
-    tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
-    document.getElementById('tempo-reset').onclick = () => { tempoSlider.value = 100; audio.playbackRate = 1.0; };
-    document.getElementById('tempo-minus').onclick = () => { tempoSlider.value = parseInt(tempoSlider.value) - 1; audio.playbackRate = tempoSlider.value / 100; };
-    document.getElementById('tempo-plus').onclick = () => { tempoSlider.value = parseInt(tempoSlider.value) + 1; audio.playbackRate = tempoSlider.value / 100; };
-
+    document.getElementById('btn-header-action').onclick = () => { const isLite = document.body.classList.toggle('is-lite'); document.getElementById('main-app-title').innerText = isLite ? "ZEFRAM PLAYER LITE" : "ZEFRAM PLAYER NEO"; };
     document.getElementById('btn-open-playlist').onclick = () => navigateTo(1);
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
-    function getFolderFiles() { return allFiles.filter(f => f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); }
-    document.getElementById('btn-next-track').onclick = () => {
-        const files = getFolderFiles(); if (files.length <= 1) return;
-        const idx = files.findIndex(f => f.name === currentPlayingFileName);
-        loadTrack(files[(idx + 1) % files.length], true); 
+    window.onload = async () => {
+        const db = await openDB(), tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
+        directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+        if (directoryHandle) tapToStart.innerText = "RESTORE FOLDER ACCESS";
     };
-    document.getElementById('btn-prev-track').onclick = () => {
-        const files = getFolderFiles(); if (files.length <= 1) return;
-        const idx = files.findIndex(f => f.name === currentPlayingFileName);
-        loadTrack(files[(idx - 1 + files.length) % files.length], true); 
-    };
-
-    audio.addEventListener('ended', () => {
-        if (document.body.classList.contains('is-lite')) {
-            const files = getFolderFiles(); if (files.length > 1) {
-                const idx = files.findIndex(f => f.name === currentPlayingFileName);
-                loadTrack(files[(idx + 1) % files.length], true);
-            }
-        }
-    });
-
-    window.onload = loadSavedList;
 </script>
 </body>
 </html>
