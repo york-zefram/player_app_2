@@ -43,7 +43,6 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* LITEモード設定 */
         .lite-only { display: none !important; }
         body.is-lite .neo-only { display: none !important; }
         body.is-lite .lite-only {
@@ -117,7 +116,7 @@
         .seek-bg-layer { position: absolute; top: 0; bottom: 0; background: var(--neon-blue); z-index: 1; border-radius: 3px; box-shadow: 0 0 15px var(--neon-blue-glow); }
         input[type="range"]#main-seek { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 5; height: 60px; outline: none; margin: 0; padding: 0; }
         input[type="range"]#main-seek::-webkit-slider-thumb { -webkit-appearance: none; height: var(--thumb-size); width: var(--thumb-size); border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--neon-blue-glow); }
-        .marker { position: absolute; width: var(--marker-size); height: var(--marker-size); border-radius: 50%; background: rgba(20, 20, 20, 0.95); color: var(--neon-blue); font-size: 14px; font-family: var(--font-header); font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 20; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0); }
+        .marker { position: absolute; width: var(--marker-size); height: var(--marker-size); border-radius: 50%; background: rgba(20, 20, 20, 0.95); color: var(--neon-blue); font-size: 14px; font-family: var(--font-header); font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 20; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0); transition: none; }
 
         .container-3 { width: 100%; display: flex; justify-content: center; align-items: center; gap: 20px; padding: 10px 0; }
         .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s; border: 1px solid rgba(0, 242, 255, 0.3); }
@@ -138,7 +137,7 @@
 
         #playlist-overlay { flex: 0 0 100vw; width: 100vw; height: 100%; background: var(--bg-black); display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; padding-bottom: env(safe-area-inset-bottom); border-left: 1px solid rgba(0, 242, 255, 0.2); overflow: hidden; }
         #track-list-container { flex: 1; position: relative; overflow: hidden; width: 100%; }
-        #track-list { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; list-style: none; padding: 0; margin: 0; border-top: 1px solid #222; -webkit-overflow-scrolling: touch; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); will-change: transform; }
+        #track-list { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; list-style: none; padding: 0; margin: 0; border-top: 1px solid #222; -webkit-overflow-scrolling: touch; will-change: transform; transition: transform 0.2s ease-out; }
         #track-list::-webkit-scrollbar { display: none; }
         .playlist-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--neon-blue); padding-bottom: 6px; }
         .playlist-header span { color:var(--neon-blue); font-family:var(--font-header); font-size:0.6rem; }
@@ -293,10 +292,7 @@
     async function loadSavedList() {
         const db = await openDB(), tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
         directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-        
-        if (directoryHandle) {
-            tapToStart.innerText = "RESTORE FOLDER ACCESS";
-        }
+        if (directoryHandle) tapToStart.innerText = "RESTORE FOLDER ACCESS";
     }
 
     async function scanFolder(handle) {
@@ -310,120 +306,60 @@
             }
         }
         await scan(handle, [handle.name]);
-        // ファイル実体を取得（リスト描画用）
         for (let f of allFiles) f.file = await f.handle.getFile();
-        
         renderList();
         saveState();
         loadingOverlay.style.display = 'none';
     }
 
-    // フォルダアイコン（手動選択）
-    document.getElementById('btn-folder-scan').onclick = async () => {
-        try {
-            directoryHandle = await window.showDirectoryPicker();
-            await scanFolder(directoryHandle);
-        } catch (e) {
-            // File System Access API非対応用
-            document.getElementById('folder-input').click();
-        }
-    };
-
-    document.getElementById('folder-input').onchange = async (e) => {
-        allFiles = [];
-        for (const file of e.target.files) {
-            if (file.name.match(/\.(mp3|m4a|wav)$/i)) {
-                const path = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
-                allFiles.push({ name: file.name, path, file });
-            }
-        }
-        renderList();
-        loadingOverlay.style.display = 'none';
-    };
-
-    // 起動ボタン
     tapToStart.onclick = async () => {
         if (tapToStart.innerText === "RESTORE FOLDER ACCESS") {
             try {
-                const permission = await directoryHandle.requestPermission({ mode: 'read' });
-                if (permission === 'granted') {
-                    await scanFolder(directoryHandle);
-                } else {
-                    tapToStart.innerText = "PERMISSION DENIED. START PLAYER";
-                }
-            } catch (e) {
-                tapToStart.innerText = "RESTORE FAILED. START PLAYER";
-            }
+                if (await directoryHandle.requestPermission({ mode: 'read' }) === 'granted') await scanFolder(directoryHandle);
+            } catch (e) { tapToStart.innerText = "START PLAYER"; }
         } else {
-            // 新規フォルダ選択
             try {
                 directoryHandle = await window.showDirectoryPicker();
                 await scanFolder(directoryHandle);
-            } catch (e) {
-                document.getElementById('folder-input').click();
-                loadingOverlay.style.display = 'none';
-            }
+            } catch (e) { document.getElementById('folder-input').click(); loadingOverlay.style.display = 'none'; }
         }
     };
+
+    /* --- Swipe Logic (右スワイプで戻る) --- */
+    let touchStartX = 0;
+    trackList.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, {passive: true});
+    trackList.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        if (touchEndX - touchStartX > 80 && currentPath.length > 0) goBackLevel();
+    }, {passive: true});
 
     /* --- UI & Player Logic --- */
     function renderList() {
         trackList.innerHTML = '';
         document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
-        
         if (currentPath.length > 0) {
-            const up = document.createElement('li');
-            up.className = 'item folder';
-            up.innerText = `.. (BACK)`;
-            up.onclick = goBackLevel;
-            trackList.appendChild(up);
+            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = goBackLevel; trackList.appendChild(up);
         }
-
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
                 const next = f.path[currentPath.length];
-                if (f.path.length === currentPath.length + 1) files.push(f);
-                else if (next) dirs.add(next);
+                if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
-
         dirs.forEach(d => {
-            const li = document.createElement('li');
-            li.className = 'item folder';
-            li.innerText = d.toUpperCase();
-            li.onclick = () => goForwardLevel(d);
-            trackList.appendChild(li);
+            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.onclick = () => goForwardLevel(d); trackList.appendChild(li);
         });
-
         files.forEach(f => {
             const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`;
             li.className = 'item track';
-            li.innerHTML = `
-                <div class="item-upper"><span class="track-name-part">${f.name.split('.').slice(0,-1).join('.')}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div>
-                <div class="item-lower" id="meta-${id}">LOADING...</div>
-            `;
+            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${f.name.split('.').slice(0,-1).join('.')}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">LOADING...</div>`;
             li.onclick = () => { loadTrack(f); navigateTo(0); };
             trackList.appendChild(li);
-
-            // メタデータ読み込み
             if (f.file) {
                 const url = URL.createObjectURL(f.file), t = new Audio(url);
-                t.onloadedmetadata = () => {
-                    const durPart = document.getElementById(`dur-${id}`);
-                    if(durPart) durPart.innerText = formatTime(t.duration);
-                    URL.revokeObjectURL(url);
-                };
-                window.jsmediatags.read(f.file, {
-                    onSuccess: (tag) => {
-                        const metaPart = document.getElementById(`meta-${id}`);
-                        if(metaPart) metaPart.innerText = (tag.tags.artist || "UNKNOWN").toUpperCase();
-                    },
-                    onError: () => {
-                        const metaPart = document.getElementById(`meta-${id}`);
-                        if(metaPart) metaPart.innerText = "UNKNOWN";
-                    }
-                });
+                t.onloadedmetadata = () => { const d = document.getElementById(`dur-${id}`); if(d) d.innerText = formatTime(t.duration); URL.revokeObjectURL(url); };
+                window.jsmediatags.read(f.file, { onSuccess: (tag) => { const m = document.getElementById(`meta-${id}`); if(m) m.innerText = (tag.tags.artist || "UNKNOWN").toUpperCase(); } });
             }
         });
     }
@@ -433,16 +369,11 @@
 
     async function loadTrack(fileObj, isAuto = false) {
         audio.pause();
-        playIcon.innerHTML = ICON_PLAY;
-        
-        // ハンドルがある場合は最新のFileを取得
         const file = fileObj.handle ? await fileObj.handle.getFile() : fileObj.file;
         currentPlayingFileName = file.name;
-
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file);
         audio.src = currentObjectUrl;
-        
         audio.onloadeddata = () => {
             if (isAuto) { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
             window.jsmediatags.read(file, {
@@ -453,14 +384,8 @@
                     const pic = tag.tags.picture;
                     if (pic) {
                         const blob = new Blob([new Uint8Array(pic.data)], { type: pic.format });
-                        currentArtUrl = URL.createObjectURL(blob);
-                        albumArt.src = currentArtUrl;
-                        albumArt.style.display = 'block';
-                        defaultArtIcon.style.display = 'none';
-                    } else {
-                        albumArt.style.display = 'none';
-                        defaultArtIcon.style.display = 'block';
-                    }
+                        currentArtUrl = URL.createObjectURL(blob); albumArt.src = currentArtUrl; albumArt.style.display = 'block'; defaultArtIcon.style.display = 'none';
+                    } else { albumArt.style.display = 'none'; defaultArtIcon.style.display = 'block'; }
                     setTimeout(() => { checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); }, 100);
                 }
             });
@@ -473,10 +398,8 @@
         inner.classList.remove('scrolling-content'); 
         if (inner.scrollWidth > box.clientWidth) {
             if (!inner.querySelector('.marquee-clone')) {
-                const span = inner.querySelector('span');
-                const clone = span.cloneNode(true);
-                clone.classList.add('marquee-clone');
-                inner.appendChild(clone);
+                const span = inner.querySelector('span'), clone = span.cloneNode(true);
+                clone.classList.add('marquee-clone'); inner.appendChild(clone);
             }
             inner.classList.add('scrolling-content');
         }
@@ -486,17 +409,13 @@
         const isLite = document.body.classList.contains('is-lite');
         const rectWidth = seekWrapper.clientWidth, thumbSize = 32;
         const getX = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
-        
         if (isLite) {
             const p = (audio.currentTime / audio.duration) * 100 || 0;
-            seekBg.style.transform = `translate3d(0, 0, 0)`;
-            seekBg.style.width = `${(p/100) * rectWidth}px`;
+            seekBg.style.transform = `translate3d(0, 0, 0)`; seekBg.style.width = `${(p/100) * rectWidth}px`;
         } else {
             const xA = getX(posA), xB = getX(posB);
-            markerA.style.transform = `translate3d(${xA}px, -50%, 0)`;
-            markerB.style.transform = `translate3d(${xB}px, -50%, 0)`;
-            seekBg.style.transform = `translate3d(${xA}px, 0, 0)`;
-            seekBg.style.width = `${xB - xA}px`;
+            markerA.style.transform = `translate3d(${xA}px, -50%, 0)`; markerB.style.transform = `translate3d(${xB}px, -50%, 0)`;
+            seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; seekBg.style.width = `${xB - xA}px`;
             if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
         }
     }
@@ -519,8 +438,7 @@
         isDragging = true;
         let val = parseFloat(e.target.value); 
         if (!document.body.classList.contains('is-lite')) val = Math.max(posA, Math.min(posB, val));
-        e.target.value = val;
-        audio.currentTime = (val / 100) * audio.duration;
+        e.target.value = val; audio.currentTime = (val / 100) * audio.duration;
     };
     seek.onchange = () => isDragging = false;
 
@@ -536,57 +454,47 @@
         let dragging = false;
         const move = (e) => {
             if (!dragging) return;
-            const rect = seekWrapper.getBoundingClientRect();
-            const thumbSize = 32;
+            const rect = seekWrapper.getBoundingClientRect(), thumbSize = 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100;
             val = Math.max(0, Math.min(100, val));
-            if (isA) posA = Math.min(val, posB - 1);
-            else posB = Math.max(val, posA + 1);
+            if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1);
             updateSeekStyle();
         };
-        el.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; });
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
         el.addEventListener('mousedown', () => { dragging = true; });
-        window.addEventListener('touchmove', move, {passive:false});
+        window.addEventListener('touchmove', move, {passive: false});
         window.addEventListener('mousemove', move);
         window.addEventListener('touchend', () => dragging = false);
         window.addEventListener('mouseup', () => dragging = false);
     }
     setupDraggable(markerA, true); setupDraggable(markerB, false);
 
-    document.getElementById('tempo-slider').oninput = (e) => audio.playbackRate = e.target.value / 100;
-    document.getElementById('tempo-reset').onclick = () => { document.getElementById('tempo-slider').value = 100; audio.playbackRate = 1.0; };
+    tempoSlider.oninput = (e) => audio.playbackRate = e.target.value / 100;
+    document.getElementById('tempo-reset').onclick = () => { tempoSlider.value = 100; audio.playbackRate = 1.0; };
     document.getElementById('tempo-minus').onclick = () => { tempoSlider.value = parseInt(tempoSlider.value) - 1; audio.playbackRate = tempoSlider.value / 100; };
     document.getElementById('tempo-plus').onclick = () => { tempoSlider.value = parseInt(tempoSlider.value) + 1; audio.playbackRate = tempoSlider.value / 100; };
 
     document.getElementById('btn-open-playlist').onclick = () => navigateTo(1);
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
-    function getFolderFiles() {
-        return allFiles.filter(f => f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p));
-    }
-
+    function getFolderFiles() { return allFiles.filter(f => f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); }
     document.getElementById('btn-next-track').onclick = () => {
         const files = getFolderFiles(); if (files.length <= 1) return;
         const idx = files.findIndex(f => f.name === currentPlayingFileName);
-        const nextIdx = (idx + 1) % files.length;
-        loadTrack(files[nextIdx], true); 
+        loadTrack(files[(idx + 1) % files.length], true); 
     };
-
     document.getElementById('btn-prev-track').onclick = () => {
         const files = getFolderFiles(); if (files.length <= 1) return;
         const idx = files.findIndex(f => f.name === currentPlayingFileName);
-        const prevIdx = (idx - 1 + files.length) % files.length;
-        loadTrack(files[prevIdx], true); 
+        loadTrack(files[(idx - 1 + files.length) % files.length], true); 
     };
 
     audio.addEventListener('ended', () => {
         if (document.body.classList.contains('is-lite')) {
-            const files = getFolderFiles();
-            if (files.length > 1) {
+            const files = getFolderFiles(); if (files.length > 1) {
                 const idx = files.findIndex(f => f.name === currentPlayingFileName);
-                const nextIdx = (idx + 1) % files.length;
-                loadTrack(files[nextIdx], true);
+                loadTrack(files[(idx + 1) % files.length], true);
             }
         }
     });
