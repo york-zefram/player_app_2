@@ -22,6 +22,7 @@
             --marker-size: 32px;
             --thumb-size: 32px; 
             --white-glow: rgba(255, 255, 255, 0.8);
+            --icon-inactive: #333333;
         }
 
         body {
@@ -45,14 +46,50 @@
 
         .lite-only { display: none !important; }
         body.is-lite .neo-only { display: none !important; }
-        body.is-lite .lite-only {
-            display: flex !important;
-            width: 76px; height: 76px; border-radius: 50%;
-            border: 2px solid var(--neon-blue);
-            box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow);
-            justify-content: center; align-items: center;
+        body.is-lite .lite-only { display: flex !important; }
+        
+        body.is-lite .container-3 { 
+            width: 90%; 
+            max-width: 360px;
+            margin: 0 auto;
+            justify-content: space-between; 
+            gap: 0; 
         }
-        body.is-lite .container-3 { justify-content: center; gap: 40px; }
+
+        /* LITEモード：シャッフル・リピートの初期スタイル（オフ状態） */
+        body.is-lite #btn-shuffle, 
+        body.is-lite #btn-repeat {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: var(--icon-inactive) !important;
+        }
+        body.is-lite #btn-shuffle .btn-icon,
+        body.is-lite #btn-repeat .btn-icon {
+            filter: none !important;
+            transition: all 0.3s ease;
+        }
+
+        /* LITEモード：アクティブ（オン）時のネオンブルー */
+        body.is-lite #btn-shuffle.active, 
+        body.is-lite #btn-repeat.active {
+            color: var(--neon-blue) !important;
+        }
+        body.is-lite #btn-shuffle.active .btn-icon,
+        body.is-lite #btn-repeat.active .btn-icon {
+            filter: drop-shadow(0 0 8px var(--neon-blue)) !important;
+        }
+
+        /* LITEモード：再生バーの丸（つまみ）を小さく修正 */
+        body.is-lite #main-seek::-webkit-slider-thumb {
+            height: 16px !important;
+            width: 16px !important;
+            box-shadow: 0 0 6px #fff, 0 0 12px var(--white-glow) !important;
+        }
+
+        body.is-lite .btn-lite-small { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        body.is-lite .btn-lite-medium { width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: none; }
+        body.is-lite .btn-lite-large { width: 76px; height: 76px; border-radius: 50%; border: none; box-shadow: none; }
 
         #thumbnail-container { display: none; justify-content: center; align-items: center; margin: 10px 0; flex-shrink: 0; }
         body.is-lite #thumbnail-container { display: flex; }
@@ -148,12 +185,14 @@
         }
 
         .container-3 { width: 100%; display: flex; justify-content: center; align-items: center; gap: 20px; padding: 10px 0; }
-        .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(0, 242, 255, 0.3); }
+        .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(0, 242, 255, 0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .btn-large { width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); }
         .btn-small { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); opacity: 0.9; }
         .btn-icon { font-size: 2.4rem; filter: drop-shadow(0 0 8px var(--neon-blue)); display: flex; align-items: center; justify-content: center; } 
         .btn-icon-s { font-size: 0.9rem; font-family: var(--font-header); font-weight: bold; filter: drop-shadow(0 0 5px var(--neon-blue)); }
         .svg-icon { width: 1em; height: 1em; fill: currentColor; }
+        
+        .main-btn.active { background: rgba(0, 242, 255, 0.3) !important; }
 
         .container-tempo { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 5px 10px; box-sizing: border-box; margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.05); }
         .tempo-labels { display: flex; justify-content: space-between; color: var(--neon-blue); font-family: var(--font-header); font-size: 0.7rem; opacity: 0.8; padding: 0 5%; }
@@ -181,7 +220,7 @@
         .track-duration-part { flex-shrink: 0; color: #888; font-size: 0.65rem; font-family: var(--font-header); text-align: right; min-width: 44px; }
     </style>
 </head>
-<body>
+<body class="is-lite">
 
 <div id="loading-overlay">
     <div class="spinner" id="loading-spinner"></div>
@@ -191,7 +230,7 @@
 <div id="app-container">
     <div class="player-wrapper">
         <header class="glass-header">
-            <h1 class="app-title" id="main-app-title">ZEFRAM PLAYER NEO</h1>
+            <h1 class="app-title" id="main-app-title">ZEFRAM PLAYER LITE</h1>
             <button class="header-dot-btn" id="btn-header-action"></button>
         </header>
 
@@ -233,13 +272,36 @@
                     <div class="marker neo-only" id="marker-b">B</div>
                 </div>
             </section>
+            
             <section class="container-3">
-                <button class="main-btn lite-only" id="btn-prev-track"><span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></span></button>
+                <button class="main-btn lite-only btn-lite-small" id="btn-shuffle">
+                    <span class="btn-icon" style="font-size: 1.2rem;">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.59 10.83l-1.41 1.41 3.13 3.13L14.5 22H20v-5.5l-2.04 2.04-3.37-3.37z"/></svg>
+                    </span>
+                </button>
                 <button class="main-btn btn-small neo-only" id="btn-set-a"><span class="btn-icon-s">A</span></button>
-                <button class="main-btn btn-large neo-only" id="btn-back-to-a"><span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></span></button>
-                <button class="main-btn btn-play btn-large" id="btn-play"><span class="btn-icon" id="play-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></button>
+
+                <button class="main-btn btn-lite-medium neo-only btn-large" id="btn-back-to-a">
+                    <span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></span>
+                </button>
+                <button class="main-btn lite-only btn-lite-medium" id="btn-prev-track">
+                    <span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></span>
+                </button>
+
+                <button class="main-btn btn-play btn-lite-large btn-large" id="btn-play">
+                    <span class="btn-icon" id="play-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+                </button>
+
                 <button class="main-btn btn-small neo-only" id="btn-set-b"><span class="btn-icon-s">B</span></button>
-                <button class="main-btn lite-only" id="btn-next-track"><span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></span></button>
+                <button class="main-btn lite-only btn-lite-medium" id="btn-next-track">
+                    <span class="btn-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></span>
+                </button>
+
+                <button class="main-btn lite-only btn-lite-small" id="btn-repeat">
+                    <span class="btn-icon" style="font-size: 1.2rem;">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                    </span>
+                </button>
             </section>
         </div>
 
@@ -290,10 +352,15 @@
     const ICON_PLAY = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
     const ICON_PAUSE = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M6.5 19h4V5h-4v14zm9 0h4V5h-4v14z"/></svg>';
     
-    // A点・B点の初期配置を左右端に固定
     let posA = 0, posB = 100, isDragging = false, lastTimeStr = "";
     let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
     let currentPlayingFileName = ""; 
+    
+    // 初期状態：オフ
+    let isShuffle = false;
+    let isRepeat = false; 
+    let shuffleQueue = [];
+    let shuffleIndex = -1;
 
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
@@ -330,7 +397,6 @@
         if (!isSwiping) return; isSwiping = false;
         const endX = e.changedTouches[0].clientX, diffX = endX - startX;
         if (currentPage === 1) {
-            // スワイプで一階層ずつ戻る仕様を復元
             if (diffX > 80) { if (currentPath.length > 0) goBackLevel(); else navigateTo(0); }
             else if (diffX < -80 && currentTargetFolder) {
                 const folderName = currentTargetFolder.getAttribute('data-folder');
@@ -384,7 +450,6 @@
             const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
             if (directoryHandle && savedList) {
                 allFiles = savedList.map(m => ({ ...m, file: null })); renderList();
-                // 自動スキャン（青い丸を出す）仕様
                 loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none';
                 if (await verifyAndLinkFiles()) { loadingOverlay.style.display = 'none'; }
             } else {
@@ -526,8 +591,9 @@
     }
     
     function updateSeekStyle() {
-        const rectWidth = seekWrapper.clientWidth, thumbSize = 32;
+        const rectWidth = seekWrapper.clientWidth;
         const isLite = document.body.classList.contains('is-lite');
+        const thumbSize = isLite ? 16 : 32;
         const getXOffset = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
         const getXSimple = (p) => (p / 100) * rectWidth;
         let xA, xB;
@@ -586,7 +652,8 @@
     function setupDraggable(el, isA) { 
         let dragging = false;
         const move = (e) => { 
-            if (!dragging) return; isDragging = true; const rect = seekWrapper.getBoundingClientRect(), thumbSize = 32;
+            if (!dragging) return; isDragging = true; const rect = seekWrapper.getBoundingClientRect();
+            const thumbSize = document.body.classList.contains('is-lite') ? 16 : 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100; val = Math.max(0, Math.min(100, val));
             if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1); updateSeekStyle();
@@ -598,12 +665,84 @@
     }
     setupDraggable(markerA, true); setupDraggable(markerB, false);
 
+    function getFolderFiles() { 
+        return allFiles.filter(f => f.file && f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); 
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function refreshShuffleQueue() {
+        const files = getFolderFiles();
+        if (files.length === 0) return;
+        shuffleQueue = shuffleArray([...files]);
+        shuffleIndex = 0;
+    }
+
+    document.getElementById('btn-shuffle').onclick = function() {
+        isShuffle = this.classList.toggle('active');
+        if (isShuffle) refreshShuffleQueue();
+    };
+
+    document.getElementById('btn-repeat').onclick = function() {
+        isRepeat = this.classList.toggle('active');
+    };
+
     const btnPrev = document.getElementById('btn-prev-track');
     const btnNext = document.getElementById('btn-next-track');
-    function getFolderFiles() { return allFiles.filter(f => f.file && f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); }
-    btnNext.onclick = () => { const files = getFolderFiles(); if (files.length <= 1) return; const idx = files.findIndex(f => f.file.name === currentPlayingFileName); const nextIdx = (idx + 1) % files.length; loadTrack(files[nextIdx].file, true); };
-    btnPrev.onclick = () => { const files = getFolderFiles(); if (files.length <= 1) return; const idx = files.findIndex(f => f.file.name === currentPlayingFileName); const prevIdx = (idx - 1 + files.length) % files.length; loadTrack(files[prevIdx].file, true); };
-    audio.addEventListener('ended', () => { if (document.body.classList.contains('is-lite')) { const files = getFolderFiles(); if (files.length > 1) { const idx = files.findIndex(f => f.file.name === currentPlayingFileName); const nextIdx = (idx + 1) % files.length; loadTrack(files[nextIdx].file, true); } } });
+
+    function playNext() {
+        const files = getFolderFiles();
+        if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+
+        if (isShuffle) {
+            shuffleIndex++;
+            if (shuffleIndex >= shuffleQueue.length) {
+                if (isRepeat) {
+                    refreshShuffleQueue(); 
+                } else {
+                    audio.pause(); playIcon.innerHTML = ICON_PLAY; return;
+                }
+            }
+            loadTrack(shuffleQueue[shuffleIndex].file, true);
+        } else {
+            const idx = files.findIndex(f => f.file.name === currentPlayingFileName);
+            if (idx === files.length - 1 && !isRepeat) {
+                audio.pause(); playIcon.innerHTML = ICON_PLAY; return;
+            }
+            const nextIdx = (idx + 1) % files.length;
+            loadTrack(files[nextIdx].file, true);
+        }
+    }
+
+    function playPrev() {
+        const files = getFolderFiles();
+        if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+
+        if (isShuffle) {
+            shuffleIndex--;
+            if (shuffleIndex < 0) shuffleIndex = shuffleQueue.length - 1;
+            loadTrack(shuffleQueue[shuffleIndex].file, true);
+        } else {
+            const idx = files.findIndex(f => f.file.name === currentPlayingFileName);
+            const prevIdx = (idx - 1 + files.length) % files.length;
+            loadTrack(files[prevIdx].file, true);
+        }
+    }
+
+    btnNext.onclick = playNext;
+    btnPrev.onclick = playPrev;
+    
+    audio.addEventListener('ended', () => { 
+        if (document.body.classList.contains('is-lite')) { 
+            playNext(); 
+        } 
+    });
 
     window.onload = () => { updateSeekStyle(); checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); loadSavedList(); };
     window.onresize = () => updateSeekStyle();
