@@ -16,6 +16,7 @@
              --neon-blue: #80f9ff;
             --neon-blue-glow: rgba(0, 242, 255, 0.7);
             --bg-black: #080808;
+            /* フォントが読み込めない場合のフォールバックを指定 */
             --font-header: 'Michroma', sans-serif;
             --font-main: "A-OTF Gothic MB101 Pr5 R", sans-serif;
             --marker-size: 32px;
@@ -55,6 +56,7 @@
             gap: 0; 
         }
 
+        /* LITEモード：シャッフル・リピートの初期スタイル（オフ状態） */
         body.is-lite #btn-shuffle, 
         body.is-lite #btn-repeat {
             background: transparent !important;
@@ -68,6 +70,7 @@
             transition: all 0.3s ease;
         }
 
+        /* LITEモード：アクティブ（オン）時のネオンブルー */
         body.is-lite #btn-shuffle.active, 
         body.is-lite #btn-repeat.active {
             color: var(--neon-blue) !important;
@@ -77,6 +80,7 @@
             filter: drop-shadow(0 0 8px var(--neon-blue)) !important;
         }
 
+        /* LITEモード：再生バーの丸（つまみ）を小さく修正 */
         body.is-lite #main-seek::-webkit-slider-thumb {
             height: 16px !important;
             width: 16px !important;
@@ -352,42 +356,11 @@
     let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
     let currentPlayingFileName = ""; 
     
+    // 初期状態：オフ
     let isShuffle = false;
     let isRepeat = false; 
     let shuffleQueue = [];
     let shuffleIndex = -1;
-
-    // --- 【修正】DBバージョンを上げて古いキャッシュをリセット ---
-    const CACHE_DB_NAME = "ZPN_MetadataCache";
-    const CACHE_STORE_NAME = "metadata";
-    const CACHE_DB_VERSION = 2; // バージョン2に更新
-
-    const openCacheDB = () => new Promise((resolve, reject) => {
-        const request = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
-        request.onupgradedeeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
-                db.createObjectStore(CACHE_STORE_NAME, { keyPath: "fileId" });
-            }
-        };
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
-
-    async function getCachedMeta(fileId) {
-        const db = await openCacheDB();
-        return new Promise(r => {
-            const req = db.transaction(CACHE_STORE_NAME, "readonly").objectStore(CACHE_STORE_NAME).get(fileId);
-            req.onsuccess = () => r(req.result);
-            req.onerror = () => r(null);
-        });
-    }
-
-    async function saveCachedMeta(fileId, meta) {
-        const db = await openCacheDB();
-        const tx = db.transaction(CACHE_STORE_NAME, "readwrite");
-        tx.objectStore(CACHE_STORE_NAME).put({ fileId, ...meta });
-    }
 
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
@@ -537,100 +510,37 @@
         }
     };
 
-    // --- 【修正】renderList: Android向けに直列処理（1曲ずつ）に変更 ---
-    async function renderList() {
-        trackList.innerHTML = ''; 
-        document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
-        
+    function renderList() {
+        trackList.innerHTML = ''; document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
         if (currentPath.length > 0) {
-            const up = document.createElement('li'); 
-            up.className = 'item folder'; 
-            up.innerText = `.. (BACK)`; 
-            up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; 
-            trackList.appendChild(up);
+            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
-
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
                 const next = f.path[currentPath.length];
-                if (f.path.length === currentPath.length + 1) files.push(f); 
-                else if (next) dirs.add(next);
+                if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
-
         dirs.forEach(d => {
-            const li = document.createElement('li'); 
-            li.className = 'item folder'; 
-            li.innerText = d.toUpperCase(); 
-            li.setAttribute('data-folder', d);
-            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; 
-            trackList.appendChild(li);
+            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
+            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
-
-        // Androidでの安定のため、一斉処理ではなく1曲ずつ順番に解析・描画
-        for (const f of files) {
-            const li = document.createElement('li');
-            const fileId = `${f.name}-${f.file?.size || 0}`; 
-            const id = `f-${f.name.replace(/[^\w]/g, '')}`;
-            const displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
-
+        files.forEach(f => {
+            const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
             li.className = 'item track';
-            li.innerHTML = `
-                <div class="item-upper">
-                    <span class="track-name-part">${displayName}</span>
-                    <span class="track-duration-part" id="dur-${id}">--:--</span>
-                </div>
-                <div class="item-lower" id="meta-${id}">
-                    <div class="spinner-small" style="width:10px; height:10px; border:2px solid var(--neon-blue); border-top:2px solid transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
-                </div>
-            `;
-            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
-            trackList.appendChild(li);
-
-            if (!f.file) {
-                document.getElementById(`meta-${id}`).innerText = "RE-SCAN NEEDED";
-                continue; 
+            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
+            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } }; trackList.appendChild(li);
+            if (f.file) {
+                setTimeout(() => {
+                    const url = URL.createObjectURL(f.file), temp = new Audio(url);
+                    temp.onloadedmetadata = () => { const el = document.getElementById(`dur-${id}`); if (el) el.innerText = formatTime(temp.duration); URL.revokeObjectURL(url); };
+                    window.jsmediatags.read(f.file, { onSuccess: (tag) => { const el = document.getElementById(`meta-${id}`); if (el) el.innerText = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase(); } });
+                }, 0);
             }
-
-            const cached = await getCachedMeta(fileId);
-            if (cached) {
-                document.getElementById(`dur-${id}`).innerText = cached.duration;
-                document.getElementById(`meta-${id}`).innerText = cached.artist;
-                continue;
-            }
-
-            // キャッシュがない場合、この1曲の解析が終わるのを待ってから次へ
-            await new Promise((resolve) => {
-                window.jsmediatags.read(f.file, {
-                    skipTags: ["picture"], 
-                    onSuccess: (tag) => {
-                        const url = URL.createObjectURL(f.file);
-                        const temp = new Audio(url);
-                        temp.onloadedmetadata = () => {
-                            const duration = formatTime(temp.duration);
-                            const artist = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
-                            const title = tag.tags.title || displayName;
-                            
-                            document.getElementById(`dur-${id}`).innerText = duration;
-                            document.getElementById(`meta-${id}`).innerText = artist;
-                            
-                            saveCachedMeta(fileId, { duration, artist, title });
-                            URL.revokeObjectURL(url);
-                            resolve();
-                        };
-                        temp.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-                    },
-                    onError: () => {
-                        document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST";
-                        resolve();
-                    }
-                });
-            });
-        }
+        });
     }
 
-    // --- 【修正】loadTrack: プレイヤー表示用にはskipTagsを付けずフル解析 ---
     function loadTrack(file, isAuto = false) {
         if (!isAuto) { loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none'; }
         audio.pause(); playIcon.innerHTML = ICON_PLAY;
@@ -638,11 +548,8 @@
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file); audio.src = currentObjectUrl;
         posA = 0; posB = 100; audio.currentTime = 0; seek.value = 0;
-        
         audio.onloadeddata = () => {
             if (!isAuto) { loadingOverlay.style.display = 'none'; } else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
-            
-            // プレイヤー側では詳細情報（画像含む）が必要なためskipTagsなしで実行
             window.jsmediatags.read(file, {
                 onSuccess: (tag) => {
                     document.getElementById('title-text').innerText = tag.tags.title || file.name.split('.').slice(0, -1).join('.') || file.name;
@@ -696,10 +603,8 @@
         } else {
             xA = getXOffset(posA); xB = getXOffset(posB);
         }
-        if(!isLite){
-            markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; 
-            markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`;
-        }
+        markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; 
+        markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`;
         seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; 
         seekBg.style.width = `${xB - xA}px`;
         if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
