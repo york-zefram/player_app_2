@@ -10,13 +10,13 @@
     <meta name="ZPN-web-app-capable" content="yes">
     <meta name="ZPN-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <script src="./jsmediatags.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
         :root {
              --neon-blue: #80f9ff;
             --neon-blue-glow: rgba(0, 242, 255, 0.7);
             --bg-black: #080808;
-            /* フォントが読み込めない場合のフォールバックを指定 */
             --font-header: 'Michroma', sans-serif;
             --font-main: "A-OTF Gothic MB101 Pr5 R", sans-serif;
             --marker-size: 32px;
@@ -56,7 +56,6 @@
             gap: 0; 
         }
 
-        /* LITEモード：シャッフル・リピートの初期スタイル（オフ状態） */
         body.is-lite #btn-shuffle, 
         body.is-lite #btn-repeat {
             background: transparent !important;
@@ -64,23 +63,11 @@
             box-shadow: none !important;
             color: var(--icon-inactive) !important;
         }
-        body.is-lite #btn-shuffle .btn-icon,
-        body.is-lite #btn-repeat .btn-icon {
-            filter: none !important;
-            transition: all 0.3s ease;
-        }
-
-        /* LITEモード：アクティブ（オン）時のネオンブルー */
         body.is-lite #btn-shuffle.active, 
         body.is-lite #btn-repeat.active {
             color: var(--neon-blue) !important;
         }
-        body.is-lite #btn-shuffle.active .btn-icon,
-        body.is-lite #btn-repeat.active .btn-icon {
-            filter: drop-shadow(0 0 8px var(--neon-blue)) !important;
-        }
 
-        /* LITEモード：再生バーの丸（つまみ）を小さく修正 */
         body.is-lite #main-seek::-webkit-slider-thumb {
             height: 16px !important;
             width: 16px !important;
@@ -356,7 +343,6 @@
     let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
     let currentPlayingFileName = ""; 
     
-    // 初期状態：オフ
     let isShuffle = false;
     let isRepeat = false; 
     let shuffleQueue = [];
@@ -375,7 +361,6 @@
     }
 
     let startX = 0, startY = 0, isSwiping = false, currentTargetFolder = null;
-
     window.addEventListener('touchstart', (e) => {
         isSwiping = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
         if (currentPage === 1) { currentTargetFolder = e.target.closest('.item.folder'); appContainer.style.transition = 'none'; }
@@ -511,10 +496,13 @@
     };
 
     function renderList() {
-        trackList.innerHTML = ''; document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
+        trackList.innerHTML = ''; 
+        document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
+        
         if (currentPath.length > 0) {
             const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
+
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
@@ -522,21 +510,27 @@
                 if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
+
         dirs.forEach(d => {
             const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
             li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
+
         files.forEach(f => {
             const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
             li.className = 'item track';
-            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
-            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } }; trackList.appendChild(li);
+            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">UNKNOWN ARTIST</div>`;
+            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
+            trackList.appendChild(li);
             if (f.file) {
-                setTimeout(() => {
-                    const url = URL.createObjectURL(f.file), temp = new Audio(url);
-                    temp.onloadedmetadata = () => { const el = document.getElementById(`dur-${id}`); if (el) el.innerText = formatTime(temp.duration); URL.revokeObjectURL(url); };
-                    window.jsmediatags.read(f.file, { onSuccess: (tag) => { const el = document.getElementById(`meta-${id}`); if (el) el.innerText = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase(); } });
-                }, 0);
+                window.jsmediatags.read(f.file, {
+                    skipTags: ["picture"],
+                    onSuccess: (tag) => {
+                        const url = URL.createObjectURL(f.file), temp = new Audio(url);
+                        temp.onloadedmetadata = () => { document.getElementById(`dur-${id}`).innerText = formatTime(temp.duration); document.getElementById(`meta-${id}`).innerText = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase(); URL.revokeObjectURL(url); };
+                    },
+                    onError: () => { document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST"; }
+                });
             }
         });
     }
@@ -548,6 +542,7 @@
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file); audio.src = currentObjectUrl;
         posA = 0; posB = 100; audio.currentTime = 0; seek.value = 0;
+        
         audio.onloadeddata = () => {
             if (!isAuto) { loadingOverlay.style.display = 'none'; } else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
             window.jsmediatags.read(file, {
@@ -597,16 +592,10 @@
         const getXOffset = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
         const getXSimple = (p) => (p / 100) * rectWidth;
         let xA, xB;
-        if (isLite) {
-            const endP = (audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0;
-            xA = 0; xB = getXSimple(endP);
-        } else {
-            xA = getXOffset(posA); xB = getXOffset(posB);
-        }
-        markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; 
-        markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`;
-        seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; 
-        seekBg.style.width = `${xB - xA}px`;
+        if (isLite) { xA = 0; xB = getXSimple((audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0); }
+        else { xA = getXOffset(posA); xB = getXOffset(posB); }
+        if(!isLite){ markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`; }
+        seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; seekBg.style.width = `${xB - xA}px`;
         if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
     }
     
@@ -665,85 +654,29 @@
     }
     setupDraggable(markerA, true); setupDraggable(markerB, false);
 
-    function getFolderFiles() { 
-        return allFiles.filter(f => f.file && f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); 
-    }
+    function getFolderFiles() { return allFiles.filter(f => f.file && f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); }
+    function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
+    function refreshShuffleQueue() { const files = getFolderFiles(); if (files.length === 0) return; shuffleQueue = shuffleArray([...files]); shuffleIndex = 0; }
 
-    function shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    }
+    document.getElementById('btn-shuffle').onclick = function() { isShuffle = this.classList.toggle('active'); if (isShuffle) refreshShuffleQueue(); };
+    document.getElementById('btn-repeat').onclick = function() { isRepeat = this.classList.toggle('active'); };
 
-    function refreshShuffleQueue() {
-        const files = getFolderFiles();
-        if (files.length === 0) return;
-        shuffleQueue = shuffleArray([...files]);
-        shuffleIndex = 0;
-    }
-
-    document.getElementById('btn-shuffle').onclick = function() {
-        isShuffle = this.classList.toggle('active');
-        if (isShuffle) refreshShuffleQueue();
-    };
-
-    document.getElementById('btn-repeat').onclick = function() {
-        isRepeat = this.classList.toggle('active');
-    };
-
-    const btnPrev = document.getElementById('btn-prev-track');
-    const btnNext = document.getElementById('btn-next-track');
+    const btnPrev = document.getElementById('btn-prev-track'), btnNext = document.getElementById('btn-next-track');
 
     function playNext() {
-        const files = getFolderFiles();
-        if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
-
-        if (isShuffle) {
-            shuffleIndex++;
-            if (shuffleIndex >= shuffleQueue.length) {
-                if (isRepeat) {
-                    refreshShuffleQueue(); 
-                } else {
-                    audio.pause(); playIcon.innerHTML = ICON_PLAY; return;
-                }
-            }
-            loadTrack(shuffleQueue[shuffleIndex].file, true);
-        } else {
-            const idx = files.findIndex(f => f.file.name === currentPlayingFileName);
-            if (idx === files.length - 1 && !isRepeat) {
-                audio.pause(); playIcon.innerHTML = ICON_PLAY; return;
-            }
-            const nextIdx = (idx + 1) % files.length;
-            loadTrack(files[nextIdx].file, true);
-        }
+        const files = getFolderFiles(); if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+        if (isShuffle) { shuffleIndex++; if (shuffleIndex >= shuffleQueue.length) { if (isRepeat) refreshShuffleQueue(); else { audio.pause(); playIcon.innerHTML = ICON_PLAY; return; } } loadTrack(shuffleQueue[shuffleIndex].file, true); }
+        else { const idx = files.findIndex(f => f.file.name === currentPlayingFileName); if (idx === files.length - 1 && !isRepeat) { audio.pause(); playIcon.innerHTML = ICON_PLAY; return; } const nextIdx = (idx + 1) % files.length; loadTrack(files[nextIdx].file, true); }
     }
 
     function playPrev() {
-        const files = getFolderFiles();
-        if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
-
-        if (isShuffle) {
-            shuffleIndex--;
-            if (shuffleIndex < 0) shuffleIndex = shuffleQueue.length - 1;
-            loadTrack(shuffleQueue[shuffleIndex].file, true);
-        } else {
-            const idx = files.findIndex(f => f.file.name === currentPlayingFileName);
-            const prevIdx = (idx - 1 + files.length) % files.length;
-            loadTrack(files[prevIdx].file, true);
-        }
+        const files = getFolderFiles(); if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+        if (isShuffle) { shuffleIndex--; if (shuffleIndex < 0) shuffleIndex = shuffleQueue.length - 1; loadTrack(shuffleQueue[shuffleIndex].file, true); }
+        else { const idx = files.findIndex(f => f.file.name === currentPlayingFileName); const prevIdx = (idx - 1 + files.length) % files.length; loadTrack(files[prevIdx].file, true); }
     }
 
-    btnNext.onclick = playNext;
-    btnPrev.onclick = playPrev;
-    
-    audio.addEventListener('ended', () => { 
-        if (document.body.classList.contains('is-lite')) { 
-            playNext(); 
-        } 
-    });
-
+    btnNext.onclick = playNext; btnPrev.onclick = playPrev;
+    audio.addEventListener('ended', () => { if (document.body.classList.contains('is-lite')) playNext(); });
     window.onload = () => { updateSeekStyle(); checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); loadSavedList(); };
     window.onresize = () => updateSeekStyle();
 </script>
