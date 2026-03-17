@@ -357,10 +357,10 @@
     let shuffleQueue = [];
     let shuffleIndex = -1;
 
-    // --- 【新規】メタデータ・キャッシュ（IndexedDB）の設定 ---
+    // --- 【修正】DBバージョンを上げて古いキャッシュをリセット ---
     const CACHE_DB_NAME = "ZPN_MetadataCache";
     const CACHE_STORE_NAME = "metadata";
-    const CACHE_DB_VERSION = 1;
+    const CACHE_DB_VERSION = 2; // バージョン2に更新
 
     const openCacheDB = () => new Promise((resolve, reject) => {
         const request = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
@@ -537,7 +537,7 @@
         }
     };
 
-    // --- 【修正】renderList: メタデータ・キャッシュと並列処理の導入 ---
+    // --- 【修正】renderList: Android向けに直列処理（1曲ずつ）に変更 ---
     async function renderList() {
         trackList.innerHTML = ''; 
         document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
@@ -568,10 +568,10 @@
             trackList.appendChild(li);
         });
 
-        // 解析を並列で実行
-        const parsePromises = files.map(async (f) => {
+        // Androidでの安定のため、一斉処理ではなく1曲ずつ順番に解析・描画
+        for (const f of files) {
             const li = document.createElement('li');
-            const fileId = `${f.name}-${f.file?.size || 0}`; // IDの作成
+            const fileId = `${f.name}-${f.file?.size || 0}`; 
             const id = `f-${f.name.replace(/[^\w]/g, '')}`;
             const displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
 
@@ -581,51 +581,56 @@
                     <span class="track-name-part">${displayName}</span>
                     <span class="track-duration-part" id="dur-${id}">--:--</span>
                 </div>
-                <div class="item-lower" id="meta-${id}">LOADING...</div>
+                <div class="item-lower" id="meta-${id}">
+                    <div class="spinner-small" style="width:10px; height:10px; border:2px solid var(--neon-blue); border-top:2px solid transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                </div>
             `;
             li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
             trackList.appendChild(li);
 
             if (!f.file) {
                 document.getElementById(`meta-${id}`).innerText = "RE-SCAN NEEDED";
-                return;
+                continue; 
             }
 
-            // 1. キャッシュチェック
             const cached = await getCachedMeta(fileId);
             if (cached) {
                 document.getElementById(`dur-${id}`).innerText = cached.duration;
                 document.getElementById(`meta-${id}`).innerText = cached.artist;
-                return;
+                continue;
             }
 
-            // 2. キャッシュがなければ解析（画像はスキップ）
-            window.jsmediatags.read(f.file, {
-                skipTags: ["picture"],
-                onSuccess: (tag) => {
-                    const url = URL.createObjectURL(f.file);
-                    const temp = new Audio(url);
-                    temp.onloadedmetadata = () => {
-                        const duration = formatTime(temp.duration);
-                        const artist = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
-                        
-                        document.getElementById(`dur-${id}`).innerText = duration;
-                        document.getElementById(`meta-${id}`).innerText = artist;
-                        
-                        // 保存
-                        saveCachedMeta(fileId, { duration, artist });
-                        URL.revokeObjectURL(url);
-                    };
-                },
-                onError: () => {
-                    document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST";
-                }
+            // キャッシュがない場合、この1曲の解析が終わるのを待ってから次へ
+            await new Promise((resolve) => {
+                window.jsmediatags.read(f.file, {
+                    skipTags: ["picture"], 
+                    onSuccess: (tag) => {
+                        const url = URL.createObjectURL(f.file);
+                        const temp = new Audio(url);
+                        temp.onloadedmetadata = () => {
+                            const duration = formatTime(temp.duration);
+                            const artist = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
+                            const title = tag.tags.title || displayName;
+                            
+                            document.getElementById(`dur-${id}`).innerText = duration;
+                            document.getElementById(`meta-${id}`).innerText = artist;
+                            
+                            saveCachedMeta(fileId, { duration, artist, title });
+                            URL.revokeObjectURL(url);
+                            resolve();
+                        };
+                        temp.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+                    },
+                    onError: () => {
+                        document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST";
+                        resolve();
+                    }
+                });
             });
-        });
-
-        await Promise.all(parsePromises);
+        }
     }
 
+    // --- 【修正】loadTrack: プレイヤー表示用にはskipTagsを付けずフル解析 ---
     function loadTrack(file, isAuto = false) {
         if (!isAuto) { loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none'; }
         audio.pause(); playIcon.innerHTML = ICON_PLAY;
@@ -633,8 +638,11 @@
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file); audio.src = currentObjectUrl;
         posA = 0; posB = 100; audio.currentTime = 0; seek.value = 0;
+        
         audio.onloadeddata = () => {
             if (!isAuto) { loadingOverlay.style.display = 'none'; } else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
+            
+            // プレイヤー側では詳細情報（画像含む）が必要なためskipTagsなしで実行
             window.jsmediatags.read(file, {
                 onSuccess: (tag) => {
                     document.getElementById('title-text').innerText = tag.tags.title || file.name.split('.').slice(0, -1).join('.') || file.name;
