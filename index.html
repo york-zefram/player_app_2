@@ -411,14 +411,24 @@
     document.getElementById('btn-open-playlist').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
-    const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore", DB_VERSION = 20; 
+    // バージョンを21に更新し、DB構造をリセットしやすくします
+    const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore", DB_VERSION = 21; 
     const folderInput = document.getElementById('folder-input');
     let allFiles = [], currentPath = [], directoryHandle = null;
 
     const openDB = () => new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
-        request.onsuccess = (e) => resolve(e.target.result); request.onerror = (e) => reject(e.target.error);
+        request.onupgradeneeded = (e) => { 
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => {
+            console.error("Database error:", e.target.error);
+            reject(e.target.error);
+        };
     });
 
     async function saveState() {
@@ -430,18 +440,50 @@
 
     async function loadSavedList() {
         try {
-            const db = await openDB(), tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
-            directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-            const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            
+            directoryHandle = await new Promise(r => { 
+                const req = store.get("folder_handle"); 
+                req.onsuccess = () => r(req.result); 
+                req.onerror = () => r(null); 
+            });
+            
+            const savedList = await new Promise(r => { 
+                const req = store.get("file_list"); 
+                req.onsuccess = () => r(req.result); 
+                req.onerror = () => r(null); 
+            });
+
             if (directoryHandle && savedList) {
-                allFiles = savedList.map(m => ({ ...m, file: null })); renderList();
-                loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none';
-                if (await verifyAndLinkFiles()) { loadingOverlay.style.display = 'none'; }
+                allFiles = savedList.map(m => ({ ...m, file: null })); 
+                renderList();
+                loadingOverlay.style.display = 'flex'; 
+                loadingSpinner.style.display = 'block'; 
+                tapToStart.style.display = 'none';
+                
+                // エラー時も確実にボタンが出るようにキャッチ
+                const linked = await verifyAndLinkFiles().catch(() => false);
+                if (linked) {
+                    loadingOverlay.style.display = 'none'; 
+                } else {
+                    showStartButton();
+                }
             } else {
-                loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; 
-                tapToStart.innerText = "START PLAYER"; tapToStart.style.display = 'block';
+                showStartButton();
             }
-        } catch (e) { loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; tapToStart.innerText = "START PLAYER"; tapToStart.style.display = 'block'; }
+        } catch (e) { 
+            console.error("Load state failed:", e);
+            showStartButton();
+        }
+    }
+
+    function showStartButton() {
+        loadingOverlay.style.display = 'flex'; 
+        loadingSpinner.style.display = 'none'; 
+        tapToStart.innerText = "START PLAYER"; 
+        tapToStart.style.display = 'block';
     }
 
     async function verifyAndLinkFiles() {
@@ -524,17 +566,14 @@
             trackList.appendChild(li);
 
             if (f.file) {
-                // キャッシュキーの作成（ファイル名とサイズを使用）
                 const cacheKey = `info_${f.file.name}_${f.file.size}`;
                 const cachedData = localStorage.getItem(cacheKey);
 
                 if (cachedData) {
-                    // キャッシュがある場合は即座に表示
                     const info = JSON.parse(cachedData);
                     document.getElementById(`dur-${id}`).innerText = info.duration;
                     document.getElementById(`meta-${id}`).innerText = info.artist;
                 } else {
-                    // キャッシュがない場合のみ解析を実行
                     window.jsmediatags.read(f.file, {
                         skipTags: ["picture"],
                         onSuccess: (tag) => {
@@ -542,22 +581,13 @@
                             temp.onloadedmetadata = () => {
                                 const durationStr = formatTime(temp.duration);
                                 const artistStr = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
-                                
                                 document.getElementById(`dur-${id}`).innerText = durationStr;
                                 document.getElementById(`meta-${id}`).innerText = artistStr;
-                                
-                                // 解析結果をlocalStorageに保存
-                                localStorage.setItem(cacheKey, JSON.stringify({
-                                    duration: durationStr,
-                                    artist: artistStr
-                                }));
-                                
+                                localStorage.setItem(cacheKey, JSON.stringify({ duration: durationStr, artist: artistStr }));
                                 URL.revokeObjectURL(url);
                             };
                         },
-                        onError: () => { 
-                            document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST"; 
-                        }
+                        onError: () => { document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST"; }
                     });
                 }
             }
