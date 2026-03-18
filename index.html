@@ -719,20 +719,11 @@
             seek.value = curP; const timeStr = `${formatTime(cur)} / ${formatTime(dur)}`;
             if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
             updateSeekStyle();
+            if (!document.body.classList.contains('is-lite')) { if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * dur; }
         }
         requestAnimationFrame(updateFrame);
     }
     requestAnimationFrame(updateFrame);
-
-    // スリープ対策：バックグラウンドでもリピート判定が動くようにontimeupdateで監視
-    audio.ontimeupdate = () => {
-        if (audio.duration && !isDragging && !document.body.classList.contains('is-lite')) {
-            const curP = (audio.currentTime / audio.duration) * 100;
-            if (curP >= posB || curP < posA - 0.2) {
-                audio.currentTime = (posA / 100) * audio.duration;
-            }
-        }
-    };
 
     seek.oninput = (e) => { 
         isDragging = true; audio.muted = true; let val = parseFloat(e.target.value); 
