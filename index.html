@@ -10,7 +10,8 @@
     <meta name="ZPN-web-app-capable" content="yes">
     <meta name="ZPN-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <script src="./jsmediatags.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
         :root {
              --neon-blue: #80f9ff;
@@ -55,6 +56,7 @@
             gap: 0; 
         }
 
+        /* LITEモード：シャッフル・リピートの初期スタイル（オフ状態） */
         body.is-lite #btn-shuffle, 
         body.is-lite #btn-repeat {
             background: transparent !important;
@@ -68,6 +70,7 @@
             transition: all 0.3s ease;
         }
 
+        /* LITEモード：アクティブ（オン）時のネオンブルー */
         body.is-lite #btn-shuffle.active, 
         body.is-lite #btn-repeat.active {
             color: var(--neon-blue) !important;
@@ -77,6 +80,7 @@
             filter: drop-shadow(0 0 8px var(--neon-blue)) !important;
         }
 
+        /* LITEモード：再生バーの丸（つまみ）を小さく修正 */
         body.is-lite #main-seek::-webkit-slider-thumb {
             height: 16px !important;
             width: 16px !important;
@@ -352,42 +356,11 @@
     let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
     let currentPlayingFileName = ""; 
     
+    // 初期状態：オフ
     let isShuffle = false;
     let isRepeat = false; 
     let shuffleQueue = [];
     let shuffleIndex = -1;
-
-    // --- 【新規】メタデータ・キャッシュ（IndexedDB）の設定 ---
-    const CACHE_DB_NAME = "ZPN_MetadataCache";
-    const CACHE_STORE_NAME = "metadata";
-    const CACHE_DB_VERSION = 1;
-
-    const openCacheDB = () => new Promise((resolve, reject) => {
-        const request = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
-        request.onupgradedeeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
-                db.createObjectStore(CACHE_STORE_NAME, { keyPath: "fileId" });
-            }
-        };
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
-
-    async function getCachedMeta(fileId) {
-        const db = await openCacheDB();
-        return new Promise(r => {
-            const req = db.transaction(CACHE_STORE_NAME, "readonly").objectStore(CACHE_STORE_NAME).get(fileId);
-            req.onsuccess = () => r(req.result);
-            req.onerror = () => r(null);
-        });
-    }
-
-    async function saveCachedMeta(fileId, meta) {
-        const db = await openCacheDB();
-        const tx = db.transaction(CACHE_STORE_NAME, "readwrite");
-        tx.objectStore(CACHE_STORE_NAME).put({ fileId, ...meta });
-    }
 
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
@@ -537,93 +510,35 @@
         }
     };
 
-    // --- 【修正】renderList: メタデータ・キャッシュと並列処理の導入 ---
-    async function renderList() {
-        trackList.innerHTML = ''; 
-        document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
-        
+    function renderList() {
+        trackList.innerHTML = ''; document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
         if (currentPath.length > 0) {
-            const up = document.createElement('li'); 
-            up.className = 'item folder'; 
-            up.innerText = `.. (BACK)`; 
-            up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; 
-            trackList.appendChild(up);
+            const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
-
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
                 const next = f.path[currentPath.length];
-                if (f.path.length === currentPath.length + 1) files.push(f); 
-                else if (next) dirs.add(next);
+                if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
-
         dirs.forEach(d => {
-            const li = document.createElement('li'); 
-            li.className = 'item folder'; 
-            li.innerText = d.toUpperCase(); 
-            li.setAttribute('data-folder', d);
-            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; 
-            trackList.appendChild(li);
+            const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
+            li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
-
-        // 解析を並列で実行
-        const parsePromises = files.map(async (f) => {
-            const li = document.createElement('li');
-            const fileId = `${f.name}-${f.file?.size || 0}`; // IDの作成
-            const id = `f-${f.name.replace(/[^\w]/g, '')}`;
-            const displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
-
+        files.forEach(f => {
+            const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
             li.className = 'item track';
-            li.innerHTML = `
-                <div class="item-upper">
-                    <span class="track-name-part">${displayName}</span>
-                    <span class="track-duration-part" id="dur-${id}">--:--</span>
-                </div>
-                <div class="item-lower" id="meta-${id}">LOADING...</div>
-            `;
-            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
-            trackList.appendChild(li);
-
-            if (!f.file) {
-                document.getElementById(`meta-${id}`).innerText = "RE-SCAN NEEDED";
-                return;
+            li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">${f.file ? 'READY' : 'RE-SCAN NEEDED'}</div>`;
+            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } }; trackList.appendChild(li);
+            if (f.file) {
+                setTimeout(() => {
+                    const url = URL.createObjectURL(f.file), temp = new Audio(url);
+                    temp.onloadedmetadata = () => { const el = document.getElementById(`dur-${id}`); if (el) el.innerText = formatTime(temp.duration); URL.revokeObjectURL(url); };
+                    window.jsmediatags.read(f.file, { onSuccess: (tag) => { const el = document.getElementById(`meta-${id}`); if (el) el.innerText = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase(); } });
+                }, 0);
             }
-
-            // 1. キャッシュチェック
-            const cached = await getCachedMeta(fileId);
-            if (cached) {
-                document.getElementById(`dur-${id}`).innerText = cached.duration;
-                document.getElementById(`meta-${id}`).innerText = cached.artist;
-                return;
-            }
-
-            // 2. キャッシュがなければ解析（画像はスキップ）
-            window.jsmediatags.read(f.file, {
-                skipTags: ["picture"],
-                onSuccess: (tag) => {
-                    const url = URL.createObjectURL(f.file);
-                    const temp = new Audio(url);
-                    temp.onloadedmetadata = () => {
-                        const duration = formatTime(temp.duration);
-                        const artist = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
-                        
-                        document.getElementById(`dur-${id}`).innerText = duration;
-                        document.getElementById(`meta-${id}`).innerText = artist;
-                        
-                        // 保存
-                        saveCachedMeta(fileId, { duration, artist });
-                        URL.revokeObjectURL(url);
-                    };
-                },
-                onError: () => {
-                    document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST";
-                }
-            });
         });
-
-        await Promise.all(parsePromises);
     }
 
     function loadTrack(file, isAuto = false) {
@@ -688,10 +603,8 @@
         } else {
             xA = getXOffset(posA); xB = getXOffset(posB);
         }
-        if(!isLite){
-            markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; 
-            markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`;
-        }
+        markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; 
+        markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`;
         seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; 
         seekBg.style.width = `${xB - xA}px`;
         if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
