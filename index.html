@@ -348,6 +348,30 @@
     let shuffleQueue = [];
     let shuffleIndex = -1;
 
+    // --- Worker Setup ---
+    const workerCode = `
+        let timer = null;
+        self.onmessage = function(e) {
+            const { type, curP, posA, posB, isNeo, isPaused } = e.data;
+            if (type === 'check') {
+                if (isNeo && !isPaused) {
+                    if (curP >= posB || curP < posA - 0.2) {
+                        self.postMessage({ type: 'loop' });
+                    }
+                }
+            }
+        };
+    `;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.onmessage = function(e) {
+        if (e.data.type === 'loop' && audio.duration) {
+            audio.currentTime = (posA / 100) * audio.duration;
+        }
+    };
+    // --------------------
+
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
         appTitle.innerText = isLite ? "ZEFRAM PLAYER LITE" : "ZEFRAM PLAYER NEO";
@@ -411,7 +435,6 @@
     document.getElementById('btn-open-playlist').onclick = () => { if(allFiles.length > 0) navigateTo(1); };
     document.getElementById('btn-close-list').onclick = () => navigateTo(0);
 
-    // バージョンを21に更新し、DB構造をリセットしやすくします
     const DB_NAME = "ZeframPlayerDB_V2", STORE_NAME = "FilesStore", DB_VERSION = 21; 
     const folderInput = document.getElementById('folder-input');
     let allFiles = [], currentPath = [], directoryHandle = null;
@@ -462,8 +485,6 @@
                 loadingOverlay.style.display = 'flex'; 
                 loadingSpinner.style.display = 'block'; 
                 tapToStart.style.display = 'none';
-                
-                // エラー時も確実にボタンが出るようにキャッチ
                 const linked = await verifyAndLinkFiles().catch(() => false);
                 if (linked) {
                     loadingOverlay.style.display = 'none'; 
@@ -680,7 +701,21 @@
             seek.value = curP; const timeStr = `${formatTime(cur)} / ${formatTime(dur)}`;
             if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
             updateSeekStyle();
-            if (!document.body.classList.contains('is-lite')) { if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * dur; }
+            
+            // Workerへ現在のステータスを送信してバックグラウンド監視を依頼
+            worker.postMessage({
+                type: 'check',
+                curP: curP,
+                posA: posA,
+                posB: posB,
+                isNeo: !document.body.classList.contains('is-lite'),
+                isPaused: audio.paused
+            });
+            
+            // メインスレッドでの判定も予備として残す
+            if (!document.body.classList.contains('is-lite')) { 
+                if (curP >= posB || curP < posA - 0.2) audio.currentTime = (posA / 100) * dur; 
+            }
         }
         requestAnimationFrame(updateFrame);
     }
