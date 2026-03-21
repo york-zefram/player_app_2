@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZEFRAM PLAYER</title>
+    <title>.</title>
     <meta name="apple-mobile-web-app-title" content="ZPN">
     <link rel="manifest" href="manifest.json">
     <link rel="ZPN-icon" href="icon.png">
@@ -43,6 +43,36 @@
             -webkit-tap-highlight-color: transparent;
             padding-bottom: env(safe-area-inset-bottom);
         }
+
+        /* --- オープニング演出用CSSの追加（ここから） --- */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
+            transition: opacity 0.8s ease;
+        }
+        
+        .scan-line {
+            position: absolute;
+            top: 0; left: -10px; width: 3px; height: 100%;
+            background: var(--neon-blue);
+            box-shadow: 0 0 15px var(--neon-blue-glow), 0 0 30px var(--neon-blue-glow);
+            z-index: 10001;
+            display: none;
+        }
+
+        @keyframes scan-horizontal {
+            0% { left: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; opacity: 0; }
+        }
+
+        .scan-active {
+            display: block;
+            animation: scan-horizontal 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+        }
+        /* --- オープニング演出用CSSの追加（ここまで） --- */
 
         .lite-only { display: none !important; }
         body.is-lite .neo-only { display: none !important; }
@@ -92,29 +122,24 @@
             display: flex; width: 200vw; height: 100%;
             transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             will-change: transform; backface-visibility: hidden;
+            opacity: 1;
         }
 
-        #loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 8, 8, 0.95); backdrop-filter: blur(8px);
-            z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
-        }
         .spinner {
-            width: 50px; height: 50px;
-            border: 4px solid rgba(0, 242, 255, 0.2);
-            border-top: 4px solid var(--neon-blue);
+            width: 40px; height: 40px;
+            border: 3px solid rgba(0, 242, 255, 0.1);
+            border-top: 3px solid var(--neon-blue);
             border-radius: 50%; animation: spin 1s linear infinite;
-            box-shadow: 0 0 15px var(--neon-blue-glow);
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         #tap-to-start {
-            display: none; color: var(--neon-blue); font-weight: bold;
-            border: 2px solid var(--neon-blue); padding: 15px 30px; border-radius: 30px;
-            box-shadow: 0 0 20px var(--neon-blue-glow); animation: pulse 1.5s infinite;
-            text-align: center; cursor: pointer;
+            display: none; color: var(--neon-blue); font-weight: bold; font-family: var(--font-header);
+            border: 1px solid var(--neon-blue); padding: 12px 24px; border-radius: 2px;
+            box-shadow: 0 0 15px var(--neon-blue-glow); animation: pulse 2s infinite;
+            text-align: center; cursor: pointer; letter-spacing: 2px; font-size: 0.8rem;
         }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
         .player-wrapper { flex: 0 0 100vw; width: 100vw; padding: 25px 10px 10px 10px; box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
         header.glass-header { position: relative; text-align: center; padding: 0 0 2px 0; flex-shrink: 0; height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -212,6 +237,7 @@
 <div id="loading-overlay">
     <div class="spinner" id="loading-spinner"></div>
     <div id="tap-to-start">READY</div>
+    <div id="scan-line" class="scan-line"></div>
 </div>
 
 <div id="app-container">
@@ -326,6 +352,7 @@
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingSpinner = document.getElementById('loading-spinner');
     const tapToStart = document.getElementById('tap-to-start');
+    const scanLine = document.getElementById('scan-line'); // スキャンライン要素取得
     const timeDisplay = document.getElementById('time-display');
     const abRangeText = document.getElementById('ab-range-text');
     const seekWrapper = document.getElementById('seek-wrapper');
@@ -348,18 +375,12 @@
     let shuffleQueue = [];
     let shuffleIndex = -1;
 
-    // --- 【ABリピート監視ロジック：修正版】 ---
     audio.addEventListener('timeupdate', () => {
         if (!document.body.classList.contains('is-lite') && audio.duration) {
             const curP = (audio.currentTime / audio.duration) * 100;
-            
-            // A点が0より大きい、または、B点が100より小さい（＝どちらかが初期状態から動いている）
             const isRangeActive = (posA > 0 || posB < 100);
-
             if (isRangeActive) {
-                // B点が100%（初期値）の場合でも、リピートを効かせるために99.7%で引き戻す
                 const effectiveB = (posB === 100) ? 99.7 : posB;
-
                 if (curP >= effectiveB || curP < posA - 0.2) {
                     audio.currentTime = (posA / 100) * audio.duration;
                     if (audio.paused) audio.play();
@@ -367,7 +388,6 @@
             }
         }
     });
-    // ------------------------------------------
 
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
@@ -440,68 +460,35 @@
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = (e) => { 
             const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
-            }
+            if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
         };
         request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => {
-            console.error("Database error:", e.target.error);
-            reject(e.target.error);
-        };
+        request.onerror = (e) => reject(e.target.error);
     });
 
     async function saveState() {
         try {
             const db = await openDB(), tx = db.transaction(STORE_NAME, "readwrite"), store = tx.objectStore(STORE_NAME);
             store.put(directoryHandle, "folder_handle"); store.put(allFiles.map(f => ({ name: f.name, path: f.path })), "file_list");
-        } catch (e) { console.error("Save state failed:", e); }
+        } catch (e) { console.error(e); }
     }
 
     async function loadSavedList() {
         try {
-            const db = await openDB();
-            const tx = db.transaction(STORE_NAME, "readonly");
-            const store = tx.objectStore(STORE_NAME);
-            
-            directoryHandle = await new Promise(r => { 
-                const req = store.get("folder_handle"); 
-                req.onsuccess = () => r(req.result); 
-                req.onerror = () => r(null); 
-            });
-            
-            const savedList = await new Promise(r => { 
-                const req = store.get("file_list"); 
-                req.onsuccess = () => r(req.result); 
-                req.onerror = () => r(null); 
-            });
-
+            const db = await openDB(), tx = db.transaction(STORE_NAME, "readonly"), store = tx.objectStore(STORE_NAME);
+            directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+            const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
             if (directoryHandle && savedList) {
-                allFiles = savedList.map(m => ({ ...m, file: null })); 
-                renderList();
-                loadingOverlay.style.display = 'flex'; 
-                loadingSpinner.style.display = 'block'; 
-                tapToStart.style.display = 'none';
-                const linked = await verifyAndLinkFiles().catch(() => false);
-                if (linked) {
-                    loadingOverlay.style.display = 'none'; 
-                } else {
-                    showStartButton();
-                }
-            } else {
-                showStartButton();
-            }
-        } catch (e) { 
-            console.error("Load state failed:", e);
-            showStartButton();
-        }
+                allFiles = savedList.map(m => ({ ...m, file: null })); renderList();
+                loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none';
+                if (await verifyAndLinkFiles().catch(() => false)) loadingOverlay.style.display = 'none'; else showStartButton();
+            } else showStartButton();
+        } catch (e) { showStartButton(); }
     }
 
     function showStartButton() {
-        loadingOverlay.style.display = 'flex'; 
-        loadingSpinner.style.display = 'none'; 
-        tapToStart.innerText = "START PLAYER"; 
-        tapToStart.style.display = 'block';
+        loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'none'; 
+        tapToStart.innerText = "START PLAYER"; tapToStart.style.display = 'block';
     }
 
     async function verifyAndLinkFiles() {
@@ -556,13 +543,10 @@
     };
 
     function renderList() {
-        trackList.innerHTML = ''; 
-        document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
-        
+        trackList.innerHTML = ''; document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
         if (currentPath.length > 0) {
             const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
-
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
@@ -570,39 +554,28 @@
                 if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
-
         dirs.forEach(d => {
             const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
             li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
-
         files.forEach(f => {
             const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
             li.className = 'item track';
             li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">UNKNOWN ARTIST</div>`;
-            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
-            trackList.appendChild(li);
-
+            li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } }; trackList.appendChild(li);
             if (f.file) {
-                const cacheKey = `info_${f.file.name}_${f.file.size}`;
-                const cachedData = localStorage.getItem(cacheKey);
-
+                const cacheKey = `info_${f.file.name}_${f.file.size}`, cachedData = localStorage.getItem(cacheKey);
                 if (cachedData) {
-                    const info = JSON.parse(cachedData);
-                    document.getElementById(`dur-${id}`).innerText = info.duration;
-                    document.getElementById(`meta-${id}`).innerText = info.artist;
+                    const info = JSON.parse(cachedData); document.getElementById(`dur-${id}`).innerText = info.duration; document.getElementById(`meta-${id}`).innerText = info.artist;
                 } else {
                     window.jsmediatags.read(f.file, {
                         skipTags: ["picture"],
                         onSuccess: (tag) => {
                             const url = URL.createObjectURL(f.file), temp = new Audio(url);
                             temp.onloadedmetadata = () => {
-                                const durationStr = formatTime(temp.duration);
-                                const artistStr = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
-                                document.getElementById(`dur-${id}`).innerText = durationStr;
-                                document.getElementById(`meta-${id}`).innerText = artistStr;
-                                localStorage.setItem(cacheKey, JSON.stringify({ duration: durationStr, artist: artistStr }));
-                                URL.revokeObjectURL(url);
+                                const ds = formatTime(temp.duration), as = (tag.tags.artist || "UNKNOWN ARTIST").toUpperCase();
+                                document.getElementById(`dur-${id}`).innerText = ds; document.getElementById(`meta-${id}`).innerText = as;
+                                localStorage.setItem(cacheKey, JSON.stringify({ duration: ds, artist: as })); URL.revokeObjectURL(url);
                             };
                         },
                         onError: () => { document.getElementById(`meta-${id}`).innerText = "UNKNOWN ARTIST"; }
@@ -614,14 +587,12 @@
 
     function loadTrack(file, isAuto = false) {
         if (!isAuto) { loadingOverlay.style.display = 'flex'; loadingSpinner.style.display = 'block'; tapToStart.style.display = 'none'; }
-        audio.pause(); playIcon.innerHTML = ICON_PLAY;
-        currentPlayingFileName = file.name;
+        audio.pause(); playIcon.innerHTML = ICON_PLAY; currentPlayingFileName = file.name;
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file); audio.src = currentObjectUrl;
         posA = 0; posB = 100; audio.currentTime = 0; seek.value = 0;
-        
         audio.onloadeddata = () => {
-            if (!isAuto) { loadingOverlay.style.display = 'none'; } else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
+            if (!isAuto) loadingOverlay.style.display = 'none'; else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
             window.jsmediatags.read(file, {
                 onSuccess: (tag) => {
                     document.getElementById('title-text').innerText = tag.tags.title || file.name.split('.').slice(0, -1).join('.') || file.name;
@@ -630,8 +601,7 @@
                     const pic = tag.tags.picture;
                     if (pic) {
                         const blob = new Blob([new Uint8Array(pic.data)], { type: pic.format });
-                        currentArtUrl = URL.createObjectURL(blob);
-                        albumArt.src = currentArtUrl; albumArt.style.display = 'block'; defaultArtIcon.style.display = 'none';
+                        currentArtUrl = URL.createObjectURL(blob); albumArt.src = currentArtUrl; albumArt.style.display = 'block'; defaultArtIcon.style.display = 'none';
                     } else {
                         albumArt.src = ""; albumArt.style.display = 'none'; defaultArtIcon.style.display = 'block';
                     }
@@ -649,11 +619,26 @@
         updateTempo(100);
     }
 
+    // --- オープニング演出実行ロジック ---
     tapToStart.onclick = async (e) => {
         e.stopPropagation();
-        if (directoryHandle && allFiles.some(f => !f.file)) {
-            if (await verifyAndLinkFiles()) { loadingOverlay.style.display = 'none'; if (audio.src) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } }
-        } else { loadingOverlay.style.display = 'none'; if (audio.src) { audio.play(); playIcon.innerHTML = ICON_PAUSE; } }
+        
+        // 1. ボタンとスピナーを隠す
+        tapToStart.style.display = 'none';
+        loadingSpinner.style.display = 'none';
+        
+        // 2. スキャンラインを起動
+        scanLine.classList.add('scan-active');
+
+        // 3. アニメーションに合わせてフェードアウト
+        setTimeout(() => {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+                scanLine.classList.remove('scan-active');
+                if (audio.src) { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
+            }, 800);
+        }, 1000); 
     };
 
     function checkMarquee(innerId, boxId) {
@@ -663,11 +648,8 @@
     }
     
     function updateSeekStyle() {
-        const rectWidth = seekWrapper.clientWidth;
-        const isLite = document.body.classList.contains('is-lite');
-        const thumbSize = isLite ? 16 : 32;
-        const getXOffset = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2);
-        const getXSimple = (p) => (p / 100) * rectWidth;
+        const rectWidth = seekWrapper.clientWidth, isLite = document.body.classList.contains('is-lite'), thumbSize = isLite ? 16 : 32;
+        const getXOffset = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2), getXSimple = (p) => (p / 100) * rectWidth;
         let xA, xB;
         if (isLite) { xA = 0; xB = getXSimple((audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0); }
         else { xA = getXOffset(posA); xB = getXOffset(posB); }
@@ -677,7 +659,7 @@
     }
     
     function formatTime(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s / 60), sec = Math.floor(s % 60); return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`; }
-    function updateTempo(val) { const newTempo = Math.max(50, Math.min(150, parseInt(val))); tempoSlider.value = newTempo; audio.playbackRate = newTempo / 100; }
+    function updateTempo(val) { const nt = Math.max(50, Math.min(150, parseInt(val))); tempoSlider.value = nt; audio.playbackRate = nt / 100; }
     
     let tempoInterval, tempoDelay;
     function startTempoChange(delta) { updateTempo(parseInt(tempoSlider.value) + delta); tempoDelay = setTimeout(() => { tempoInterval = setInterval(() => { updateTempo(parseInt(tempoSlider.value) + delta); }, 80); }, 500); }
@@ -694,9 +676,9 @@
     
     function updateFrame() {
         if (audio.duration && !isDragging) {
-            const cur = audio.currentTime, dur = audio.duration, curP = (cur / dur) * 100;
-            seek.value = curP; const timeStr = `${formatTime(cur)} / ${formatTime(dur)}`;
-            if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
+            const cur = audio.currentTime, curP = (cur / audio.duration) * 100;
+            seek.value = curP; const ts = `${formatTime(cur)} / ${formatTime(audio.duration)}`;
+            if (lastTimeStr !== ts) { timeDisplay.innerText = ts; lastTimeStr = ts; }
             updateSeekStyle();
         }
         requestAnimationFrame(updateFrame);
@@ -717,10 +699,9 @@
     function setupDraggable(el, isA) { 
         let dragging = false;
         const move = (e) => { 
-            if (!dragging) return; isDragging = true; const rect = seekWrapper.getBoundingClientRect();
-            const thumbSize = document.body.classList.contains('is-lite') ? 16 : 32;
+            if (!dragging) return; isDragging = true; const rect = seekWrapper.getBoundingClientRect(), ts = document.body.classList.contains('is-lite') ? 16 : 32;
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-            let val = ((x - thumbSize / 2) / (rect.width - thumbSize)) * 100; val = Math.max(0, Math.min(100, val));
+            let val = ((x - ts / 2) / (rect.width - ts)) * 100; val = Math.max(0, Math.min(100, val));
             if (isA) posA = Math.min(val, posB - 1); else posB = Math.max(val, posA + 1); updateSeekStyle();
         }; 
         const stop = () => { if (dragging) { dragging = false; setTimeout(() => isDragging = false, 200); } }; 
@@ -731,26 +712,23 @@
     setupDraggable(markerA, true); setupDraggable(markerB, false);
 
     function getFolderFiles() { return allFiles.filter(f => f.file && f.path.length === currentPath.length + 1 && currentPath.every((p, i) => f.path[i] === p)); }
-    function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
-    function refreshShuffleQueue() { const files = getFolderFiles(); if (files.length === 0) return; shuffleQueue = shuffleArray([...files]); shuffleIndex = 0; }
+    function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+    function refreshShuffleQueue() { const fs = getFolderFiles(); if (fs.length === 0) return; shuffleQueue = shuffleArray([...fs]); shuffleIndex = 0; }
 
     document.getElementById('btn-shuffle').onclick = function() { isShuffle = this.classList.toggle('active'); if (isShuffle) refreshShuffleQueue(); };
     document.getElementById('btn-repeat').onclick = function() { isRepeat = this.classList.toggle('active'); };
 
     const btnPrev = document.getElementById('btn-prev-track'), btnNext = document.getElementById('btn-next-track');
-
     function playNext() {
-        const files = getFolderFiles(); if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+        const fs = getFolderFiles(); if (fs.length <= 1) { audio.currentTime = 0; audio.play(); return; }
         if (isShuffle) { shuffleIndex++; if (shuffleIndex >= shuffleQueue.length) { if (isRepeat) refreshShuffleQueue(); else { audio.pause(); playIcon.innerHTML = ICON_PLAY; return; } } loadTrack(shuffleQueue[shuffleIndex].file, true); }
-        else { const idx = files.findIndex(f => f.file.name === currentPlayingFileName); if (idx === files.length - 1 && !isRepeat) { audio.pause(); playIcon.innerHTML = ICON_PLAY; return; } const nextIdx = (idx + 1) % files.length; loadTrack(files[nextIdx].file, true); }
+        else { const idx = fs.findIndex(f => f.file.name === currentPlayingFileName); if (idx === fs.length - 1 && !isRepeat) { audio.pause(); playIcon.innerHTML = ICON_PLAY; return; } const nextIdx = (idx + 1) % fs.length; loadTrack(fs[nextIdx].file, true); }
     }
-
     function playPrev() {
-        const files = getFolderFiles(); if (files.length <= 1) { audio.currentTime = 0; audio.play(); return; }
+        const fs = getFolderFiles(); if (fs.length <= 1) { audio.currentTime = 0; audio.play(); return; }
         if (isShuffle) { shuffleIndex--; if (shuffleIndex < 0) shuffleIndex = shuffleQueue.length - 1; loadTrack(shuffleQueue[shuffleIndex].file, true); }
-        else { const idx = files.findIndex(f => f.file.name === currentPlayingFileName); const prevIdx = (idx - 1 + files.length) % files.length; loadTrack(files[prevIdx].file, true); }
+        else { const idx = fs.findIndex(f => f.file.name === currentPlayingFileName); const prevIdx = (idx - 1 + fs.length) % fs.length; loadTrack(fs[prevIdx].file, true); }
     }
-
     btnNext.onclick = playNext; btnPrev.onclick = playPrev;
     audio.addEventListener('ended', () => { if (document.body.classList.contains('is-lite')) playNext(); });
     window.onload = () => { updateSeekStyle(); checkMarquee('title-inner', 'title-box'); checkMarquee('artist-inner', 'artist-box'); loadSavedList(); };
