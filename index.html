@@ -78,7 +78,6 @@
         body.is-lite .btn-lite-medium { width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: none; }
         body.is-lite .btn-lite-large { width: 76px; height: 76px; border-radius: 50%; border: none; box-shadow: none; }
 
-        /* --- 指定ボタン用マイクロインタラクション --- */
         .btn-status-side:active,
         .neo-only.main-btn:active,
         .btn-tempo:active,
@@ -93,7 +92,6 @@
             transform: scale(0.92);
             transition: transform 0.05s;
         }
-        /* -------------------------------------------------------- */
 
         #thumbnail-container { display: none; justify-content: center; align-items: center; margin: 10px 0; flex-shrink: 0; }
         body.is-lite #thumbnail-container { display: flex; }
@@ -617,12 +615,35 @@
     }
     
     function updateSeekStyle() {
-        const rectWidth = seekWrapper.clientWidth, isLite = document.body.classList.contains('is-lite'), thumbSize = isLite ? 16 : 32;
-        const getXOffset = (p) => (p / 100) * (rectWidth - thumbSize) + (thumbSize / 2), getXSimple = (p) => (p / 100) * rectWidth;
-        let xA, xB; if (isLite) { xA = 0; xB = (audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0; } else { xA = getXOffset(posA); xB = getXOffset(posB); }
-        if(!isLite){ markerA.style.transform = `translate3d(${getXOffset(posA)}px, -50%, 0)`; markerB.style.transform = `translate3d(${getXOffset(posB)}px, -50%, 0)`; }
-        seekBg.style.transform = `translate3d(${xA}px, 0, 0)`; seekBg.style.width = `${xB - xA}px`;
-        if (audio.duration) abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
+        const rectWidth = seekWrapper.clientWidth;
+        const isLite = document.body.classList.contains('is-lite');
+        const thumbSize = isLite ? 16 : 32;
+        
+        // つまみの幅を除いた有効なスライダーの物理幅
+        const sliderInnerWidth = rectWidth - thumbSize;
+        
+        const getXOffset = (p) => (p / 100) * sliderInnerWidth + (thumbSize / 2);
+        
+        let xA, xB;
+        if (isLite) {
+            // LITEモード: 常に左端から現在の再生位置まで
+            xA = 0;
+            const curP = (audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0;
+            xB = getXOffset(curP);
+        } else {
+            // NEOモード: A点からB点の間
+            xA = getXOffset(posA);
+            xB = getXOffset(posB);
+            markerA.style.transform = `translate3d(${xA}px, -50%, 0)`;
+            markerB.style.transform = `translate3d(${xB}px, -50%, 0)`;
+        }
+        
+        seekBg.style.transform = `translate3d(${xA}px, 0, 0)`;
+        seekBg.style.width = `${xB - xA}px`;
+        
+        if (audio.duration) {
+            abRangeText.innerText = `${formatTime((posA/100)*audio.duration)} ▶ ${formatTime((posB/100)*audio.duration)}`;
+        }
     }
     
     function formatTime(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s / 60), sec = Math.floor(s % 60); return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`; }
