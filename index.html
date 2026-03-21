@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>.</title>
+    <title>ZEFRAM PLAYER NEO</title>
     <meta name="apple-mobile-web-app-title" content="ZPN">
     <link rel="manifest" href="manifest.json">
     <link rel="ZPN-icon" href="icon.png">
@@ -44,93 +44,166 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* 起動演出用スタイル */
+        /* --- 修正：起動画面（オーバーレイ）のスタイル --- */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10000; display: none; justify-content: center; align-items: center;
             background: transparent;
-            z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
-            overflow: hidden;
         }
+
+        /* 上下の蓋（シャッター） */
         .shutter {
-            position: absolute; left: 0; width: 100%; height: 50%;
+            position: absolute; left: 0; width: 100%; height: 50.5%;
             background: var(--bg-black); z-index: 1;
-            transition: transform 0.6s cubic-bezier(0.85, 0, 0.15, 1);
+            transition: transform 0.8s cubic-bezier(0.85, 0, 0.15, 1);
+            will-change: transform;
         }
         .shutter.top { top: 0; }
         .shutter.bottom { bottom: 0; }
+
+        /* 中央の青い線 */
+        .boot-line {
+            position: absolute; top: 50%; left: 0; width: 0; height: 2px;
+            background: var(--neon-blue); 
+            box-shadow: 0 0 15px var(--neon-blue), 0 0 5px #fff;
+            z-index: 2; transform: translateY(-50%);
+            transition: width 0.4s ease-in-out, opacity 0.5s;
+            pointer-events: none;
+        }
+
+        /* 起動アニメーション用クラス */
+        #loading-overlay.line-active .boot-line { width: 100%; }
         #loading-overlay.opening .shutter.top { transform: translateY(-100%); }
         #loading-overlay.opening .shutter.bottom { transform: translateY(100%); }
 
-        .horizontal-line {
-            position: absolute; top: 50%; left: 0; width: 0; height: 1px;
-            background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue-glow);
-            z-index: 2; transform: translateY(-50%);
-            transition: width 0.4s ease-in-out;
+        /* READYボタン（Michromaフォント適用） */
+        #tap-to-start {
+            position: relative; z-index: 3; display: none;
+            color: var(--neon-blue); font-family: var(--font-header); font-weight: bold;
+            border: 2px solid var(--neon-blue); padding: 15px 35px; border-radius: 30px;
+            box-shadow: 0 0 20px var(--neon-blue-glow);
+            background: rgba(0, 0, 0, 0.8); text-align: center; cursor: pointer;
+            transition: opacity 0.3s, transform 0.3s;
+            animation: pulse 1.5s infinite;
         }
-        #loading-overlay.line-active .horizontal-line { width: 100%; }
 
         .spinner {
-            position: relative; z-index: 3;
-            width: 50px; height: 50px;
+            position: relative; z-index: 4; width: 50px; height: 50px;
             border: 4px solid rgba(0, 242, 255, 0.2);
             border-top: 4px solid var(--neon-blue);
             border-radius: 50%; animation: spin 1s linear infinite;
             box-shadow: 0 0 15px var(--neon-blue-glow);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        #tap-to-start {
-            position: relative; z-index: 3;
-            display: none; color: var(--neon-blue); font-weight: bold;
-            border: 2px solid var(--neon-blue); padding: 15px 30px; border-radius: 30px;
-            box-shadow: 0 0 20px var(--neon-blue-glow); animation: pulse 1.5s infinite;
-            text-align: center; cursor: pointer;
-            transition: opacity 0.3s ease;
-        }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        /* --- 修正ここまで --- */
 
-        /* 以下、既存のスタイルを維持 */
         .lite-only { display: none !important; }
         body.is-lite .neo-only { display: none !important; }
         body.is-lite .lite-only { display: flex !important; }
-        body.is-lite .container-3 { width: 90%; max-width: 360px; margin: 0 auto; justify-content: space-between; gap: 0; }
-        body.is-lite #btn-shuffle, body.is-lite #btn-repeat { background: transparent !important; border: none !important; box-shadow: none !important; color: var(--icon-inactive) !important; }
-        body.is-lite #btn-shuffle.active, body.is-lite #btn-repeat.active { color: var(--neon-blue) !important; }
-        body.is-lite #main-seek::-webkit-slider-thumb { height: 16px !important; width: 16px !important; box-shadow: 0 0 6px #fff, 0 0 12px var(--white-glow) !important; }
+        
+        body.is-lite .container-3 { 
+            width: 90%; 
+            max-width: 360px;
+            margin: 0 auto;
+            justify-content: space-between; 
+            gap: 0; 
+        }
+
+        body.is-lite #btn-shuffle, 
+        body.is-lite #btn-repeat {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: var(--icon-inactive) !important;
+        }
+        body.is-lite #btn-shuffle.active, 
+        body.is-lite #btn-repeat.active {
+            color: var(--neon-blue) !important;
+        }
+
+        body.is-lite #main-seek::-webkit-slider-thumb {
+            height: 16px !important;
+            width: 16px !important;
+            box-shadow: 0 0 6px #fff, 0 0 12px var(--white-glow) !important;
+        }
+
         body.is-lite .btn-lite-small { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         body.is-lite .btn-lite-medium { width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: none; }
         body.is-lite .btn-lite-large { width: 76px; height: 76px; border-radius: 50%; border: none; box-shadow: none; }
+
         #thumbnail-container { display: none; justify-content: center; align-items: center; margin: 10px 0; flex-shrink: 0; }
         body.is-lite #thumbnail-container { display: flex; }
-        #album-art-wrapper { position: relative; width: 180px; height: 180px; border-radius: 12px; border: 1px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow); background-color: #222; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        #album-art-wrapper {
+            position: relative; width: 180px; height: 180px; border-radius: 12px;
+            border: 1px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow);
+            background-color: #222; overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
         #album-art { width: 100%; height: 100%; object-fit: cover; display: none; }
         #default-art-icon { width: 80px; height: 80px; fill: var(--neon-blue); filter: drop-shadow(0 0 8px var(--neon-blue-glow)); opacity: 0.6; }
-        #app-container { display: flex; width: 200vw; height: 100%; transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1); will-change: transform; backface-visibility: hidden; }
+
+        #app-container {
+            display: flex; width: 200vw; height: 100%;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            will-change: transform; backface-visibility: hidden;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
         .player-wrapper { flex: 0 0 100vw; width: 100vw; padding: 25px 10px 10px 10px; box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
         header.glass-header { position: relative; text-align: center; padding: 0 0 2px 0; flex-shrink: 0; height: 40px; display: flex; align-items: center; justify-content: center; }
-        .app-title { margin: 0; color: var(--neon-blue); font-family: var(--font-header); font-size: 0.9rem; line-height: 1; letter-spacing: 1px; text-shadow: 0 0 10px var(--neon-blue-glow); white-space: nowrap; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-        .header-dot-btn { width: 12px; height: 12px; background-color: #fff; border-radius: 50%; border: none; box-shadow: 0 0 8px #fff, 0 0 15px var(--white-glow); cursor: pointer; padding: 0; flex-shrink: 0; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; }
+        .app-title { 
+            margin: 0; color: var(--neon-blue); font-family: var(--font-header); font-size: 0.9rem; 
+            line-height: 1; letter-spacing: 1px; text-shadow: 0 0 10px var(--neon-blue-glow); 
+            white-space: nowrap; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+        }
+        .header-dot-btn {
+            width: 12px; height: 12px; background-color: #fff; border-radius: 50%; border: none;
+            box-shadow: 0 0 8px #fff, 0 0 15px var(--white-glow); cursor: pointer; padding: 0;
+            flex-shrink: 0; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10;
+        }
+
         .info-header { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 5px 0; flex-shrink: 0; }
         .text-fields { width: 100%; height: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; }
         .marquee-box { width: 100%; overflow: hidden; white-space: nowrap; text-align: center; min-height: 1.4em; }
         .marquee-inner { display: inline-block; white-space: nowrap; will-change: transform; }
         .scrolling-content { display: inline-block; padding-right: 50px; animation: scroll-slow 15s linear infinite; }
         @keyframes scroll-slow { 0% { transform: translateX(0); } 10% { transform: translateX(0); } 85% { transform: translateX(-50%); } 100% { transform: translateX(-50%); } }
+        
         #title-text { font-weight: bold; font-size: 1.2rem; line-height: 1.2; color: #fff; }
         .artist-row { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
         #artist-text { font-size: 0.9rem; color: var(--neon-blue); line-height: 1.2; }
-        .status-action-row { width: 100%; display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 5px; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); border-bottom: 1px solid rgba(255, 255, 255, 0.1); box-sizing: border-box; }
-        .btn-status-side { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1); color: var(--neon-blue); font-family: var(--font-header); font-weight: bold; box-shadow: 0 0 10px var(--neon-blue-glow); display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0; }
+        
+        .status-action-row { 
+            width: 100%; display: flex; justify-content: center; align-items: center; gap: 24px; 
+            margin-top: 5px; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); box-sizing: border-box;
+        }
+        .btn-status-side {
+            width: 44px; height: 44px; border-radius: 50%; 
+            border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1); 
+            color: var(--neon-blue); font-family: var(--font-header); font-weight: bold; 
+            box-shadow: 0 0 10px var(--neon-blue-glow); display: flex; justify-content: center; align-items: center;
+            cursor: pointer; flex-shrink: 0;
+        }
         .time-group { display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: var(--font-header); min-width: 140px; }
         #time-display { color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 0.5px; }
         #ab-range-text { color: var(--neon-blue); font-size: 0.85rem; font-weight: bold; letter-spacing: 1px; }
+
         .main-controls-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; width: 100%; padding: 10px 0; }
         section.container-2 { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; padding: 15px 0; }
         .seek-wrapper { position: relative; width: 87%; height: 6px; display: flex; align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
         .seek-bg-layer { position: absolute; top: 0; bottom: 0; background: var(--neon-blue); z-index: 1; border-radius: 3px; box-shadow: 0 0 15px var(--neon-blue-glow); }
         input[type="range"]#main-seek { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 5; height: 60px; outline: none; margin: 0; padding: 0; }
         input[type="range"]#main-seek::-webkit-slider-thumb { -webkit-appearance: none; height: var(--thumb-size); width: var(--thumb-size); border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--neon-blue-glow); }
-        .marker { position: absolute; width: var(--marker-size); height: var(--marker-size); border-radius: 50%; background: rgba(20, 20, 20, 0.95); color: var(--neon-blue); font-size: 14px; font-family: var(--font-header); font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 20; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0); }
+
+        .marker { 
+            position: absolute; width: var(--marker-size); height: var(--marker-size); border-radius: 50%; 
+            background: rgba(20, 20, 20, 0.95); color: var(--neon-blue); font-size: 14px; font-family: var(--font-header);
+            font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 20; 
+            border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); 
+            top: 50%; margin-left: calc(var(--marker-size) / -2); transform: translate3d(0, -50%, 0);
+        }
+
         .container-3 { width: 100%; display: flex; justify-content: center; align-items: center; gap: 20px; padding: 10px 0; }
         .main-btn { color: var(--neon-blue); background: transparent !important; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(0, 242, 255, 0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .btn-large { width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue-glow), inset 0 0 10px var(--neon-blue-glow); }
@@ -138,7 +211,9 @@
         .btn-icon { font-size: 2.4rem; filter: drop-shadow(0 0 8px var(--neon-blue)); display: flex; align-items: center; justify-content: center; } 
         .btn-icon-s { font-size: 0.9rem; font-family: var(--font-header); font-weight: bold; filter: drop-shadow(0 0 5px var(--neon-blue)); }
         .svg-icon { width: 1em; height: 1em; fill: currentColor; }
+        
         .main-btn.active { background: rgba(0, 242, 255, 0.3) !important; }
+
         .container-tempo { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 5px 10px; box-sizing: border-box; margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.05); }
         .tempo-labels { display: flex; justify-content: space-between; color: var(--neon-blue); font-family: var(--font-header); font-size: 0.7rem; opacity: 0.8; padding: 0 5%; }
         .tempo-slider-wrapper { position: relative; width: 88%; height: 36px; display: flex; align-items: center; margin: 0 auto; }
@@ -147,6 +222,7 @@
         input[type="range"]#tempo-slider::-webkit-slider-thumb { -webkit-appearance: none; height: var(--thumb-size); width: var(--thumb-size); border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff, 0 0 30px var(--neon-blue-glow); }
         .tempo-controls { display: flex; justify-content: space-between; align-items: center; width: 90%; margin: 0 auto; gap: 12px; }
         .btn-tempo { width: 44px; height: 44px; border-radius: 50%; font-family: var(--font-header); font-size: 1rem; background: transparent !important; border: 2px solid var(--neon-blue); color: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue-glow); cursor: pointer; display: flex; align-items: center; justify-content: center; letter-spacing: 1px; padding-top: 1px; -webkit-font-smoothing: antialiased; flex-shrink: 0; }
+
         #playlist-overlay { flex: 0 0 100vw; width: 100vw; height: 100%; background: var(--bg-black); display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; padding-bottom: env(safe-area-inset-bottom); border-left: 1px solid rgba(0, 242, 255, 0.2); overflow: hidden; }
         #track-list-container { flex: 1; position: relative; overflow: hidden; width: 100%; }
         #track-list { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; list-style: none; padding: 0; margin: 0; border-top: 1px solid #222; -webkit-overflow-scrolling: touch; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); will-change: transform; backface-visibility: hidden; }
@@ -169,7 +245,8 @@
 <div id="loading-overlay">
     <div class="shutter top"></div>
     <div class="shutter bottom"></div>
-    <div id="boot-line" class="horizontal-line"></div>
+    <div id="boot-line" class="boot-line"></div>
+    
     <div class="spinner" id="loading-spinner"></div>
     <div id="tap-to-start">READY</div>
 </div>
@@ -302,43 +379,24 @@
     let posA = 0, posB = 100, isDragging = false, lastTimeStr = "";
     let currentObjectUrl = null, currentPage = 0, currentArtUrl = null;
     let currentPlayingFileName = ""; 
-    let isShuffle = false, isRepeat = false, shuffleQueue = [], shuffleIndex = -1;
+    
+    let isShuffle = false;
+    let isRepeat = false; 
+    let shuffleQueue = [];
+    let shuffleIndex = -1;
 
-    // --- 【起動演出シーケンス】 ---
-    tapToStart.onclick = async (e) => {
-        e.stopPropagation();
-        
-        // 1. ボタンとスピナーをフェードアウト
-        tapToStart.style.opacity = '0';
-        loadingSpinner.style.opacity = '0';
-        
-        setTimeout(() => {
-            // 2. 中央のラインを走らせる
-            loadingOverlay.classList.add('line-active');
-            
-            setTimeout(() => {
-                // 3. 上下に割る
-                loadingOverlay.classList.add('opening');
-                
-                setTimeout(async () => {
-                    // 4. 演出完了、オーバーレイを消去して再生
-                    if (directoryHandle && allFiles.some(f => !f.file)) {
-                        await verifyAndLinkFiles();
-                    }
-                    loadingOverlay.style.display = 'none';
-                    if (audio.src) { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
-                }, 600); // シャッターのtransition時間に合わせる
-            }, 400); // ラインが伸びる時間に合わせる
-        }, 300);
-    };
-
-    // ABリピート
+    // --- 【ABリピート監視ロジック：修正版】 ---
     audio.addEventListener('timeupdate', () => {
         if (!document.body.classList.contains('is-lite') && audio.duration) {
             const curP = (audio.currentTime / audio.duration) * 100;
+            
+            // A点が0より大きい、または、B点が100より小さい（＝どちらかが初期状態から動いている）
             const isRangeActive = (posA > 0 || posB < 100);
+
             if (isRangeActive) {
+                // B点が100%（初期値）の場合でも、リピートを効かせるために99.7%で引き戻す
                 const effectiveB = (posB === 100) ? 99.7 : posB;
+
                 if (curP >= effectiveB || curP < posA - 0.2) {
                     audio.currentTime = (posA / 100) * audio.duration;
                     if (audio.paused) audio.play();
@@ -346,6 +404,7 @@
             }
         }
     });
+    // ------------------------------------------
 
     btnHeaderAction.onclick = () => {
         const isLite = document.body.classList.toggle('is-lite');
@@ -418,10 +477,15 @@
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = (e) => { 
             const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) { db.createObjectStore(STORE_NAME); }
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
         };
         request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e.target.error);
+        request.onerror = (e) => {
+            console.error("Database error:", e.target.error);
+            reject(e.target.error);
+        };
     });
 
     async function saveState() {
@@ -436,8 +500,19 @@
             const db = await openDB();
             const tx = db.transaction(STORE_NAME, "readonly");
             const store = tx.objectStore(STORE_NAME);
-            directoryHandle = await new Promise(r => { const req = store.get("folder_handle"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
-            const savedList = await new Promise(r => { const req = store.get("file_list"); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+            
+            directoryHandle = await new Promise(r => { 
+                const req = store.get("folder_handle"); 
+                req.onsuccess = () => r(req.result); 
+                req.onerror = () => r(null); 
+            });
+            
+            const savedList = await new Promise(r => { 
+                const req = store.get("file_list"); 
+                req.onsuccess = () => r(req.result); 
+                req.onerror = () => r(null); 
+            });
+
             if (directoryHandle && savedList) {
                 allFiles = savedList.map(m => ({ ...m, file: null })); 
                 renderList();
@@ -445,9 +520,18 @@
                 loadingSpinner.style.display = 'block'; 
                 tapToStart.style.display = 'none';
                 const linked = await verifyAndLinkFiles().catch(() => false);
-                if (linked) { loadingOverlay.style.display = 'none'; } else { showStartButton(); }
-            } else { showStartButton(); }
-        } catch (e) { showStartButton(); }
+                if (linked) {
+                    loadingOverlay.style.display = 'none'; 
+                } else {
+                    showStartButton();
+                }
+            } else {
+                showStartButton();
+            }
+        } catch (e) { 
+            console.error("Load state failed:", e);
+            showStartButton();
+        }
     }
 
     function showStartButton() {
@@ -511,9 +595,11 @@
     function renderList() {
         trackList.innerHTML = ''; 
         document.getElementById('breadcrumb').innerText = "ROOT / " + currentPath.join(' / ').toUpperCase();
+        
         if (currentPath.length > 0) {
             const up = document.createElement('li'); up.className = 'item folder'; up.innerText = `.. (BACK)`; up.onclick = (e) => { e.stopPropagation(); goBackLevel(); }; trackList.appendChild(up);
         }
+
         const dirs = new Set(), files = [];
         allFiles.forEach(f => {
             if (currentPath.every((p, i) => f.path[i] === p)) {
@@ -521,19 +607,23 @@
                 if (f.path.length === currentPath.length + 1) files.push(f); else if (next) dirs.add(next);
             }
         });
+
         dirs.forEach(d => {
             const li = document.createElement('li'); li.className = 'item folder'; li.innerText = d.toUpperCase(); li.setAttribute('data-folder', d);
             li.onclick = (e) => { e.stopPropagation(); goForwardLevel(d); }; trackList.appendChild(li);
         });
+
         files.forEach(f => {
             const li = document.createElement('li'), id = `f-${f.name.replace(/[^\w]/g, '')}`, displayName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
             li.className = 'item track';
             li.innerHTML = `<div class="item-upper"><span class="track-name-part">${displayName}</span><span class="track-duration-part" id="dur-${id}">--:--</span></div><div class="item-lower" id="meta-${id}">UNKNOWN ARTIST</div>`;
             li.onclick = (e) => { e.stopPropagation(); if (f.file) { loadTrack(f.file); navigateTo(0); } };
             trackList.appendChild(li);
+
             if (f.file) {
                 const cacheKey = `info_${f.file.name}_${f.file.size}`;
                 const cachedData = localStorage.getItem(cacheKey);
+
                 if (cachedData) {
                     const info = JSON.parse(cachedData);
                     document.getElementById(`dur-${id}`).innerText = info.duration;
@@ -566,6 +656,7 @@
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(file); audio.src = currentObjectUrl;
         posA = 0; posB = 100; audio.currentTime = 0; seek.value = 0;
+        
         audio.onloadeddata = () => {
             if (!isAuto) { loadingOverlay.style.display = 'none'; } else { audio.play(); playIcon.innerHTML = ICON_PAUSE; }
             window.jsmediatags.read(file, {
@@ -594,6 +685,41 @@
         };
         updateTempo(100);
     }
+
+    // --- 修正：起動演出スクリプト ---
+    tapToStart.onclick = async (e) => {
+        e.stopPropagation();
+        
+        // ボタンをフェードアウト
+        tapToStart.style.opacity = '0';
+        tapToStart.style.transform = 'scale(0.8)';
+
+        setTimeout(async () => {
+            // 1. 青い線を走らせる
+            loadingOverlay.classList.add('line-active');
+
+            setTimeout(async () => {
+                // 2. シャッターを開く & 線を消す
+                loadingOverlay.classList.add('opening');
+                document.getElementById('boot-line').style.opacity = '0';
+
+                // 3. データ読み込み（必要なら）
+                if (directoryHandle && allFiles.some(f => !f.file)) {
+                    await verifyAndLinkFiles();
+                }
+
+                setTimeout(() => {
+                    // 4. 完全に隠れたら再生開始
+                    loadingOverlay.style.display = 'none';
+                    if (audio.src) {
+                        audio.play();
+                        playIcon.innerHTML = ICON_PAUSE;
+                    }
+                }, 800); // シャッター動作時間
+            }, 400); // 線の走行待ち時間
+        }, 200);
+    };
+    // --- 修正ここまで ---
 
     function checkMarquee(innerId, boxId) {
         const inner = document.getElementById(innerId), box = document.getElementById(boxId); if (!inner || !box) return;
