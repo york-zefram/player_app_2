@@ -348,18 +348,22 @@
     let shuffleQueue = [];
     let shuffleIndex = -1;
 
-    // --- 【修正箇所：ABリピート監視ロジック】 ---
-    // 画面オフでも動く audio の timeupdate イベントに判定を移管
+    // --- 【ABリピート監視ロジック：修正版】 ---
     audio.addEventListener('timeupdate', () => {
-        // NEOモード時のみ実行
         if (!document.body.classList.contains('is-lite') && audio.duration) {
             const curP = (audio.currentTime / audio.duration) * 100;
             
-            // 強制引き戻しロジック：
-            // B点を超えた場合、または（スリープ中の居眠りによる）大幅な超過、
-            // もしくはA点より手前に戻りすぎていた場合に強制リピート
-            if (curP >= posB || curP < posA - 0.2) {
-                audio.currentTime = (posA / 100) * audio.duration;
+            // A点が0より大きい、または、B点が100より小さい（＝どちらかが初期状態から動いている）
+            const isRangeActive = (posA > 0 || posB < 100);
+
+            if (isRangeActive) {
+                // B点が100%（初期値）の場合でも、リピートを効かせるために99.7%で引き戻す
+                const effectiveB = (posB === 100) ? 99.7 : posB;
+
+                if (curP >= effectiveB || curP < posA - 0.2) {
+                    audio.currentTime = (posA / 100) * audio.duration;
+                    if (audio.paused) audio.play();
+                }
             }
         }
     });
@@ -694,9 +698,6 @@
             seek.value = curP; const timeStr = `${formatTime(cur)} / ${formatTime(dur)}`;
             if (lastTimeStr !== timeStr) { timeDisplay.innerText = timeStr; lastTimeStr = timeStr; }
             updateSeekStyle();
-            
-            // 【重要】スリープ対策：ABリピート判定はここ（requestAnimationFrame）ではなく、
-            // 上記の audio.addEventListener('timeupdate', ...) 内で行うように変更しました。
         }
         requestAnimationFrame(updateFrame);
     }
